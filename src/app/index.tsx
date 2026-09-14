@@ -38,7 +38,7 @@ export default function LoginScreen() {
     }
 
     // Temporary navigation until Firebase authentication is added.
-    router.push("/elderly/dashboard");
+    router.push("/caregiver/dashboard");
   };
 
   return (
