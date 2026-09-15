@@ -11,17 +11,20 @@ import {
   View,
 } from "react-native";
 import LargeButton from "../components/LargeButton";
+import { AuthPresenter } from "../presenters/AuthPresenter";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const authPresenter = new AuthPresenter();
+  const [loading, setLoading] = useState(false);
 
   const isValidEmail = (value: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(value);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !password.trim()) {
@@ -37,8 +40,31 @@ export default function LoginScreen() {
       return;
     }
 
-    // Temporary navigation until Firebase authentication is added.
-    router.push("/caregiver/dashboard");
+    try {
+      setLoading(true);
+
+      const user = await authPresenter.login(trimmedEmail, password);
+
+      if (user.role === "elderly") {
+        router.replace("/elderly/dashboard");
+      } else if (user.role === "caregiver") {
+        router.replace("/caregiver/dashboard");
+      } else {
+        Alert.alert(
+          "Login Error",
+          "This account does not have a valid user role.",
+        );
+      }
+    } catch (error) {
+      console.error(error);
+
+      Alert.alert(
+        "Login Failed",
+        "The email or password you entered is incorrect.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -82,7 +108,11 @@ export default function LoginScreen() {
               autoComplete="password"
             />
 
-            <LargeButton title="Log In" onPress={handleLogin} />
+            <LargeButton
+              title={loading ? "Logging In..." : "Log In"}
+              onPress={handleLogin}
+              disabled={loading}
+            />
           </View>
 
           <Text style={styles.note}>
