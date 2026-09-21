@@ -1,9 +1,38 @@
 import { router } from "expo-router";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import LargeButton from "../../components/LargeButton";
+import { auth } from "../../config/firebase";
 import { AuthPresenter } from "../../presenters/AuthPresenter";
+import { DatabaseService } from "../../services/DatabaseService";
 
 export default function ElderlyDashboard() {
+  const databaseService = new DatabaseService();
+
+  const testFirestore = async () => {
+    try {
+      const user = auth.currentUser;
+
+      if (!user) {
+        console.log("No authenticated user");
+        return;
+      }
+
+      const id = await databaseService.createTestCheckIn(user.uid);
+
+      console.log("Created test check-in:", id);
+
+      const checkIns = await databaseService.getCheckIns(user.uid);
+
+      console.log("Check-ins:", checkIns);
+
+      Alert.alert("Firestore Test", "Write and read completed successfully.");
+    } catch (error) {
+      console.error("Firestore test failed:", error);
+
+      Alert.alert("Firestore Test Failed", "Check the console for details.");
+    }
+  };
+
   const handleCheckIn = () => {
     Alert.alert(
       "Check-in Complete",
@@ -28,23 +57,19 @@ export default function ElderlyDashboard() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Good Morning</Text>
-
       <View style={styles.card}>
         <Text style={styles.label}>Next Check-in</Text>
         <Text style={styles.time}>10:00 AM</Text>
       </View>
-
       <Text style={styles.question}>How are you?</Text>
-
       <LargeButton title="I'M OK ✓" onPress={handleCheckIn} />
-
       <Text style={styles.lastCheckIn}>Last check-in: Today at 8:00 AM</Text>
-
       <LargeButton
         title="View Check-in History"
         onPress={() => router.push("/elderly/history")}
       />
       <LargeButton title="Log Out" onPress={handleLogout} />
+      <LargeButton title="Test Firestore" onPress={testFirestore} />
     </View>
   );
 }

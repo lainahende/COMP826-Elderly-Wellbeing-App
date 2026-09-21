@@ -1,7 +1,6 @@
-export interface Reminder {
+export interface CheckIn {
   id?: string;
   elderlyUserId: string;
-  caregiverId: string;
-  time: string;
-  enabled: boolean;
+  timestamp: Date;
+  status: "completed";
 }
