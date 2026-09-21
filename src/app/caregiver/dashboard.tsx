@@ -1,8 +1,23 @@
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import LargeButton from "../../components/LargeButton";
+import { AuthPresenter } from "../../presenters/AuthPresenter";
 
 export default function CaregiverDashboard() {
+  const authPresenter = new AuthPresenter();
+
+  const handleLogout = async () => {
+    try {
+      await authPresenter.logout();
+
+      router.replace("/");
+    } catch (error) {
+      console.error(error);
+
+      Alert.alert("Logout Failed", "Unable to log out. Please try again.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Caregiver Dashboard</Text>
@@ -30,6 +45,8 @@ export default function CaregiverDashboard() {
         title="Profile"
         onPress={() => router.push("/caregiver/profile")}
       />
+
+      <LargeButton title="Log Out" onPress={handleLogout} />
     </View>
   );
 }

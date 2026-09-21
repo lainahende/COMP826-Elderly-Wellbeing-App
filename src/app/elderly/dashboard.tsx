@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import LargeButton from "../../components/LargeButton";
+import { AuthPresenter } from "../../presenters/AuthPresenter";
 
 export default function ElderlyDashboard() {
   const handleCheckIn = () => {
@@ -8,6 +9,20 @@ export default function ElderlyDashboard() {
       "Check-in Complete",
       "Your wellbeing check-in has been recorded.",
     );
+  };
+
+  const authPresenter = new AuthPresenter();
+
+  const handleLogout = async () => {
+    try {
+      await authPresenter.logout();
+
+      router.replace("/");
+    } catch (error) {
+      console.error(error);
+
+      Alert.alert("Logout Failed", "Unable to log out. Please try again.");
+    }
   };
 
   return (
@@ -29,6 +44,7 @@ export default function ElderlyDashboard() {
         title="View Check-in History"
         onPress={() => router.push("/elderly/history")}
       />
+      <LargeButton title="Log Out" onPress={handleLogout} />
     </View>
   );
 }
