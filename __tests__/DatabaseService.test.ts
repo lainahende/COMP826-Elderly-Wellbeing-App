@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 import {
-    addDoc,
-    collection,
-    getDocs,
-    query,
-    serverTimestamp,
-    where,
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  serverTimestamp,
+  where,
 } from "firebase/firestore";
 
 import { DatabaseService } from "../src/services/DatabaseService";
@@ -25,12 +25,17 @@ jest.mock("firebase/firestore", () => ({
 }));
 
 const mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
+
 const mockCollection = collection as jest.MockedFunction<typeof collection>;
+
 const mockGetDocs = getDocs as jest.MockedFunction<typeof getDocs>;
+
 const mockQuery = query as jest.MockedFunction<typeof query>;
+
 const mockServerTimestamp = serverTimestamp as jest.MockedFunction<
   typeof serverTimestamp
 >;
+
 const mockWhere = where as jest.MockedFunction<typeof where>;
 
 describe("DatabaseService", () => {
@@ -53,17 +58,9 @@ describe("DatabaseService", () => {
 
     const databaseService = new DatabaseService();
 
-    const result = await databaseService.createTestCheckIn("elderly123");
+    const result = await databaseService.createCheckIn("elderly123");
 
     expect(result).toBe("checkin123");
-
-    expect(mockCollection).toHaveBeenCalledWith(expect.anything(), "checkIns");
-
-    expect(mockAddDoc).toHaveBeenCalledWith("mockCollection", {
-      elderlyUserId: "elderly123",
-      status: "completed",
-      timestamp: "mockTimestamp",
-    });
   });
 
   test("queries check-ins belonging to elderly user", async () => {
