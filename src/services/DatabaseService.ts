@@ -1,18 +1,18 @@
 import {
-    addDoc,
-    collection,
-    getDocs,
-    query,
-    serverTimestamp,
-    where,
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  serverTimestamp,
+  where,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
 
 export class DatabaseService {
-  async createTestCheckIn(userId: string) {
+  async createCheckIn(elderlyUserId: string) {
     const document = await addDoc(collection(db, "checkIns"), {
-      elderlyUserId: userId,
+      elderlyUserId,
       status: "completed",
       timestamp: serverTimestamp(),
     });
@@ -20,10 +20,10 @@ export class DatabaseService {
     return document.id;
   }
 
-  async getCheckIns(userId: string) {
+  async getCheckIns(elderlyUserId: string) {
     const checkInQuery = query(
       collection(db, "checkIns"),
-      where("elderlyUserId", "==", userId),
+      where("elderlyUserId", "==", elderlyUserId),
     );
 
     const snapshot = await getDocs(checkInQuery);
