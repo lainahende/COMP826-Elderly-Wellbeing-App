@@ -94,4 +94,32 @@ describe("DatabaseService", () => {
       },
     ]);
   });
+
+  test("retrieves reminder schedule for elderly user", async () => {
+    mockGetDocs.mockResolvedValue({
+      docs: [
+        {
+          id: "reminder1",
+          data: () => ({
+            elderlyUserId: "elderly123",
+            times: ["08:00", "10:00", "18:00"],
+          }),
+        },
+      ],
+    } as any);
+
+    const databaseService = new DatabaseService();
+
+    const result = await databaseService.getReminderSchedule("elderly123");
+
+    expect(mockWhere).toHaveBeenCalledWith("elderlyUserId", "==", "elderly123");
+
+    expect(result).toEqual([
+      {
+        id: "reminder1",
+        elderlyUserId: "elderly123",
+        times: ["08:00", "10:00", "18:00"],
+      },
+    ]);
+  });
 });

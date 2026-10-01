@@ -33,4 +33,18 @@ export class DatabaseService {
       ...document.data(),
     }));
   }
+
+  async getReminderSchedule(elderlyUserId: string) {
+    const reminderQuery = query(
+      collection(db, "reminders"),
+      where("elderlyUserId", "==", elderlyUserId),
+    );
+
+    const snapshot = await getDocs(reminderQuery);
+
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...document.data(),
+    }));
+  }
 }

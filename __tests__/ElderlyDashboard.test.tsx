@@ -18,6 +18,9 @@ const mockCompleteCheckIn = jest.fn();
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 
+const mockGetReminderSchedule = jest.fn();
+const mockGetNextReminder = jest.fn();
+
 /* --------------------------------------------------
    Mock Firebase
 -------------------------------------------------- */
@@ -62,6 +65,21 @@ jest.mock("expo-router", () => ({
 }));
 
 /* --------------------------------------------------
+   Mock Reminder Manager
+-------------------------------------------------- */
+jest.mock("../src/services/DatabaseService", () => ({
+  DatabaseService: jest.fn().mockImplementation(() => ({
+    getReminderSchedule: mockGetReminderSchedule,
+  })),
+}));
+
+jest.mock("../src/managers/ReminderManager", () => ({
+  ReminderManager: jest.fn().mockImplementation(() => ({
+    getNextReminder: mockGetNextReminder,
+  })),
+}));
+
+/* --------------------------------------------------
    Load dashboard after mocks
 -------------------------------------------------- */
 
@@ -74,6 +92,38 @@ const ElderlyDashboard = require("../src/app/elderly/dashboard").default;
 describe("ElderlyDashboard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  test("displays the next reminder time from reminder schedule", async () => {
+    mockGetReminderSchedule.mockResolvedValue([
+      {
+        id: "reminder1",
+        elderlyUserId: "elderly123",
+        times: ["08:00", "10:00", "18:00"],
+      },
+    ]);
+
+    mockGetNextReminder.mockReturnValue("10:00");
+
+    await render(<ElderlyDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("10:00 AM")).toBeTruthy();
+    });
+
+    expect(mockGetReminderSchedule).toHaveBeenCalledWith("elderly123");
+  });
+
+  test("shows no reminder message when none are configured", async () => {
+    mockGetReminderSchedule.mockResolvedValue([]);
+
+    mockGetNextReminder.mockReturnValue(null);
+
+    await render(<ElderlyDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No reminder set")).toBeTruthy();
+    });
   });
 
   test("renders elderly dashboard content", async () => {
