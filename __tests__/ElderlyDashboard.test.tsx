@@ -1,228 +1,206 @@
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
+/* --------------------------------------------------
+   Mock functions
+-------------------------------------------------- */
+
+const mockLogout = jest.fn();
+const mockCompleteCheckIn = jest.fn();
+
+const mockPush = jest.fn();
+const mockReplace = jest.fn();
+
+/* --------------------------------------------------
+   Mock Firebase
+-------------------------------------------------- */
+
 jest.mock("../src/config/firebase", () => ({
-  db: {},
+  auth: {
+    currentUser: {
+      uid: "elderly123",
+    },
+  },
 }));
 
-jest.mock("firebase/firestore", () => ({
-  addDoc: jest.fn(),
-  collection: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  serverTimestamp: jest.fn(),
-  where: jest.fn(),
+/* --------------------------------------------------
+   Mock AuthPresenter
+-------------------------------------------------- */
+
+jest.mock("../src/presenters/AuthPresenter", () => ({
+  AuthPresenter: jest.fn().mockImplementation(() => ({
+    logout: mockLogout,
+  })),
 }));
 
-import { DatabaseService } from "../src/services/DatabaseService";
+/* --------------------------------------------------
+   Mock CheckInManager
+-------------------------------------------------- */
 
-const firestore = jest.requireMock("firebase/firestore") as {
-  addDoc: jest.Mock;
-  collection: jest.Mock;
-  getDocs: jest.Mock;
-  query: jest.Mock;
-  serverTimestamp: jest.Mock;
-  where: jest.Mock;
-};
+jest.mock("../src/managers/CheckInManager", () => ({
+  CheckInManager: jest.fn().mockImplementation(() => ({
+    completeCheckIn: mockCompleteCheckIn,
+  })),
+}));
 
-describe("DatabaseService", () => {
+/* --------------------------------------------------
+   Mock Expo Router
+-------------------------------------------------- */
+
+jest.mock("expo-router", () => ({
+  router: {
+    push: mockPush,
+    replace: mockReplace,
+  },
+}));
+
+/* --------------------------------------------------
+   Load dashboard after mocks
+-------------------------------------------------- */
+
+const ElderlyDashboard = require("../src/app/elderly/dashboard").default;
+
+/* --------------------------------------------------
+   Tests
+-------------------------------------------------- */
+
+describe("ElderlyDashboard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    firestore.collection.mockReturnValue("mockCollection");
-
-    firestore.query.mockReturnValue("mockQuery");
-
-    firestore.where.mockReturnValue("mockWhere");
-
-    firestore.serverTimestamp.mockReturnValue("mockTimestamp");
   });
 
-  test("creates a completed check-in with timestamp", async () => {
-    firestore.addDoc.mockResolvedValue({
-      id: "checkin123",
-    });
+  test("renders elderly dashboard content", async () => {
+    await render(<ElderlyDashboard />);
 
-    const databaseService = new DatabaseService();
+    expect(screen.getByText("Good Morning")).toBeTruthy();
 
-    const result = await databaseService.createCheckIn("elderly123");
+    expect(screen.getByText("Current Status")).toBeTruthy();
 
-    expect(firestore.collection).toHaveBeenCalledWith(
-      expect.anything(),
-      "checkIns",
-    );
+    expect(screen.getByText("✓ Checked in today")).toBeTruthy();
 
-    expect(firestore.serverTimestamp).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Next Check-in")).toBeTruthy();
 
-    expect(firestore.addDoc).toHaveBeenCalledWith("mockCollection", {
-      elderlyUserId: "elderly123",
-      status: "completed",
-      timestamp: "mockTimestamp",
-    });
+    expect(screen.getByText("How are you?")).toBeTruthy();
 
-    expect(result).toBe("checkin123");
+    expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+
+    expect(screen.getByText("View Check-in History")).toBeTruthy();
+
+    expect(screen.getByText("Log Out")).toBeTruthy();
   });
 
-  test("associates created check-in with the correct elderly user", async () => {
-    firestore.addDoc.mockResolvedValue({
-      id: "checkin456",
-    });
+  test("history button navigates to elderly history", async () => {
+    await render(<ElderlyDashboard />);
 
-    const databaseService = new DatabaseService();
+    await fireEvent.press(screen.getByText("View Check-in History"));
 
-    await databaseService.createCheckIn("elderly456");
-
-    expect(firestore.addDoc).toHaveBeenCalledWith(
-      "mockCollection",
-      expect.objectContaining({
-        elderlyUserId: "elderly456",
-      }),
-    );
+    expect(mockPush).toHaveBeenCalledWith("/elderly/history");
   });
 
-  test("stores completed status when creating a check-in", async () => {
-    firestore.addDoc.mockResolvedValue({
-      id: "checkin789",
+  test("logout signs user out and returns to login", async () => {
+    mockLogout.mockResolvedValue(undefined);
+
+    await render(<ElderlyDashboard />);
+
+    await fireEvent.press(screen.getByText("Log Out"));
+
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 
-    const databaseService = new DatabaseService();
-
-    await databaseService.createCheckIn("elderly789");
-
-    expect(firestore.addDoc).toHaveBeenCalledWith(
-      "mockCollection",
-      expect.objectContaining({
-        status: "completed",
-      }),
-    );
+    expect(mockReplace).toHaveBeenCalledWith("/");
   });
 
-  test("returns the created Firestore document id", async () => {
-    firestore.addDoc.mockResolvedValue({
-      id: "newCheckInId",
+  test("pressing I'M OK creates a check-in for the logged-in elderly user", async () => {
+    mockCompleteCheckIn.mockResolvedValue("checkin123");
+
+    await render(<ElderlyDashboard />);
+
+    await fireEvent.press(screen.getByText("I'M OK ✓"));
+
+    await waitFor(() => {
+      expect(mockCompleteCheckIn).toHaveBeenCalledTimes(1);
     });
 
-    const databaseService = new DatabaseService();
-
-    const result = await databaseService.createCheckIn("elderly123");
-
-    expect(result).toBe("newCheckInId");
+    expect(mockCompleteCheckIn).toHaveBeenCalledWith("elderly123");
   });
 
-  test("queries check-ins belonging to the elderly user", async () => {
-    firestore.getDocs.mockResolvedValue({
-      docs: [
-        {
-          id: "checkin123",
-          data: () => ({
-            elderlyUserId: "elderly123",
-            status: "completed",
-            timestamp: "mockTimestamp",
-          }),
-        },
-      ],
+  test("prevents duplicate check-in submissions", async () => {
+    let resolveCheckIn!: (value: string) => void;
+
+    const pendingCheckIn = new Promise<string>((resolve) => {
+      resolveCheckIn = resolve;
     });
 
-    const databaseService = new DatabaseService();
+    mockCompleteCheckIn.mockReturnValue(pendingCheckIn);
 
-    const result = await databaseService.getCheckIns("elderly123");
+    await render(<ElderlyDashboard />);
 
-    expect(firestore.collection).toHaveBeenCalledWith(
-      expect.anything(),
-      "checkIns",
-    );
+    fireEvent.press(screen.getByText("I'M OK ✓"));
 
-    expect(firestore.where).toHaveBeenCalledWith(
-      "elderlyUserId",
-      "==",
-      "elderly123",
-    );
-
-    expect(firestore.query).toHaveBeenCalledWith("mockCollection", "mockWhere");
-
-    expect(firestore.getDocs).toHaveBeenCalledWith("mockQuery");
-
-    expect(result).toEqual([
-      {
-        id: "checkin123",
-        elderlyUserId: "elderly123",
-        status: "completed",
-        timestamp: "mockTimestamp",
-      },
-    ]);
-  });
-
-  test("returns multiple check-ins for the elderly user", async () => {
-    firestore.getDocs.mockResolvedValue({
-      docs: [
-        {
-          id: "checkin1",
-          data: () => ({
-            elderlyUserId: "elderly123",
-            status: "completed",
-            timestamp: "time1",
-          }),
-        },
-        {
-          id: "checkin2",
-          data: () => ({
-            elderlyUserId: "elderly123",
-            status: "completed",
-            timestamp: "time2",
-          }),
-        },
-      ],
+    await waitFor(() => {
+      expect(screen.getByText("Saving...")).toBeTruthy();
     });
 
-    const databaseService = new DatabaseService();
+    expect(mockCompleteCheckIn).toHaveBeenCalledTimes(1);
 
-    const result = await databaseService.getCheckIns("elderly123");
+    fireEvent.press(screen.getByText("Saving..."));
 
-    expect(result).toHaveLength(2);
+    expect(mockCompleteCheckIn).toHaveBeenCalledTimes(1);
 
-    expect(result[0]).toEqual({
-      id: "checkin1",
-      elderlyUserId: "elderly123",
-      status: "completed",
-      timestamp: "time1",
+    await act(async () => {
+      resolveCheckIn("checkin123");
+      await pendingCheckIn;
     });
 
-    expect(result[1]).toEqual({
-      id: "checkin2",
-      elderlyUserId: "elderly123",
-      status: "completed",
-      timestamp: "time2",
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
     });
   });
 
-  test("returns an empty array when no check-ins exist", async () => {
-    firestore.getDocs.mockResolvedValue({
-      docs: [],
+  test("shows saving state while check-in is being submitted", async () => {
+    let resolveCheckIn!: (value: string) => void;
+
+    const pendingCheckIn = new Promise<string>((resolve) => {
+      resolveCheckIn = resolve;
     });
 
-    const databaseService = new DatabaseService();
+    mockCompleteCheckIn.mockReturnValue(pendingCheckIn);
 
-    const result = await databaseService.getCheckIns("elderly123");
+    await render(<ElderlyDashboard />);
 
-    expect(result).toEqual([]);
+    fireEvent.press(screen.getByText("I'M OK ✓"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Saving...")).toBeTruthy();
+    });
+
+    await act(async () => {
+      resolveCheckIn("checkin123");
+      await pendingCheckIn;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
   });
 
-  test("propagates Firestore errors when creating a check-in fails", async () => {
-    firestore.addDoc.mockRejectedValue(new Error("Firestore write failed"));
+  test("returns check-in button to normal after successful submission", async () => {
+    mockCompleteCheckIn.mockResolvedValue("checkin123");
 
-    const databaseService = new DatabaseService();
+    await render(<ElderlyDashboard />);
 
-    await expect(databaseService.createCheckIn("elderly123")).rejects.toThrow(
-      "Firestore write failed",
-    );
-  });
+    await fireEvent.press(screen.getByText("I'M OK ✓"));
 
-  test("propagates Firestore errors when reading check-ins fails", async () => {
-    firestore.getDocs.mockRejectedValue(new Error("Firestore read failed"));
-
-    const databaseService = new DatabaseService();
-
-    await expect(databaseService.getCheckIns("elderly123")).rejects.toThrow(
-      "Firestore read failed",
-    );
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
   });
 });
