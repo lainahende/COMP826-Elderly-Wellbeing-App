@@ -1,15 +1,150 @@
 import { router } from "expo-router";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
 import LargeButton from "../../components/LargeButton";
+import { auth } from "../../config/firebase";
+import { ReminderManager } from "../../managers/ReminderManager";
 import { AuthPresenter } from "../../presenters/AuthPresenter";
+import { DatabaseService } from "../../services/DatabaseService";
+
+type CheckInRecord = {
+  id: string;
+  elderlyUserId: string;
+  status: string;
+  timestamp?: {
+    toDate: () => Date;
+  };
+};
+
+type ElderlyProfile = {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+};
+
+const isToday = (date: Date) => {
+  const today = new Date();
+
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
+
+const formatTime = (date: Date) =>
+  date.toLocaleTimeString("en-NZ", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+const formatReminderTime = (time: string) => {
+  const [hourText, minute] = time.split(":");
+
+  const hour = Number(hourText);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${minute} ${suffix}`;
+};
 
 export default function CaregiverDashboard() {
+  const databaseService = new DatabaseService();
+  const reminderManager = new ReminderManager();
   const authPresenter = new AuthPresenter();
+
+  const [loading, setLoading] = useState(true);
+
+  const [elderlyProfile, setElderlyProfile] = useState<ElderlyProfile | null>(
+    null,
+  );
+
+  const [checkedInToday, setCheckedInToday] = useState(false);
+
+  const [lastCheckIn, setLastCheckIn] = useState<Date | null>(null);
+
+  const [nextReminder, setNextReminder] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const caregiver = auth.currentUser;
+
+        if (!caregiver) {
+          return;
+        }
+
+        const elderlyUserId = await databaseService.getLinkedElderlyUserId(
+          caregiver.uid,
+        );
+
+        if (!elderlyUserId) {
+          setElderlyProfile(null);
+          return;
+        }
+
+        const profile = await databaseService.getUserProfile(elderlyUserId);
+
+        setElderlyProfile(profile as ElderlyProfile | null);
+
+        const checkIns = (await databaseService.getCheckIns(
+          elderlyUserId,
+        )) as CheckInRecord[];
+
+        if (checkIns.length > 0) {
+          const sorted = [...checkIns].sort((a, b) => {
+            const aTime = a.timestamp?.toDate().getTime() ?? 0;
+
+            const bTime = b.timestamp?.toDate().getTime() ?? 0;
+
+            return bTime - aTime;
+          });
+
+          const latest = sorted[0].timestamp?.toDate();
+
+          if (latest) {
+            setLastCheckIn(latest);
+            setCheckedInToday(isToday(latest));
+          }
+        }
+
+        const schedules =
+          await databaseService.getReminderSchedule(elderlyUserId);
+
+        const reminderTimes = schedules.flatMap(
+          (schedule: any) => schedule.times ?? [],
+        );
+
+        const next = reminderManager.getNextReminder(reminderTimes);
+
+        setNextReminder(next);
+      } catch (error) {
+        console.error("Unable to load caregiver dashboard:", error);
+
+        Alert.alert(
+          "Unable to Load",
+          "The caregiver dashboard could not be loaded.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
 
   const handleLogout = async () => {
     try {
       await authPresenter.logout();
-
       router.replace("/");
     } catch (error) {
       console.error(error);
@@ -18,71 +153,151 @@ export default function CaregiverDashboard() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!elderlyProfile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.title}>Caregiver Dashboard</Text>
+
+        <Text style={styles.message}>
+          No elderly user is linked to this caregiver account.
+        </Text>
+
+        <LargeButton title="Log Out" onPress={handleLogout} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Caregiver Dashboard</Text>
 
       <View style={styles.card}>
-        <Text style={styles.name}>Elderly User</Text>
-        <Text style={styles.status}>✓ Checked in</Text>
+        <Text style={styles.label}>Elderly Profile</Text>
 
-        <Text style={styles.info}>Last check-in: Today at 8:00 AM</Text>
+        <Text style={styles.profileName}>
+          {elderlyProfile.name ?? "Elderly User"}
+        </Text>
 
-        <Text style={styles.info}>Next check-in: 10:00 AM</Text>
+        {elderlyProfile.email && (
+          <Text style={styles.subText}>{elderlyProfile.email}</Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Current Wellbeing Status</Text>
+
+        <Text style={styles.statusValue}>
+          {checkedInToday ? "✓ Checked in today" : "No check-in today"}
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Last Check-in</Text>
+
+        <Text style={styles.value}>
+          {lastCheckIn
+            ? isToday(lastCheckIn)
+              ? `Today at ${formatTime(lastCheckIn)}`
+              : lastCheckIn.toLocaleString("en-NZ", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+            : "No previous check-ins"}
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Next Scheduled Reminder</Text>
+
+        <Text style={styles.value}>
+          {nextReminder ? formatReminderTime(nextReminder) : "No reminder set"}
+        </Text>
       </View>
 
       <LargeButton
-        title="Reminder Schedule"
-        onPress={() => router.push("/caregiver/schedule")}
-      />
-
-      <LargeButton
-        title="Check-in History"
+        title="View Check-in History"
         onPress={() => router.push("/caregiver/history")}
       />
 
       <LargeButton
-        title="Profile"
-        onPress={() => router.push("/caregiver/profile")}
+        title="Manage Reminder Schedule"
+        onPress={() => router.push("/caregiver/schedule")}
       />
 
       <LargeButton title="Log Out" onPress={handleLogout} />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
+    padding: 28,
+    gap: 24,
+    backgroundColor: "#FFFFFF",
+  },
+
+  loadingContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     padding: 28,
     gap: 20,
-    backgroundColor: "#FFFFFF",
   },
 
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 10,
+    textAlign: "center",
   },
 
   card: {
+    padding: 20,
     borderWidth: 1,
     borderColor: "#CCC",
     borderRadius: 12,
-    padding: 20,
-    gap: 10,
   },
 
-  name: {
-    fontSize: 24,
+  label: {
+    fontSize: 18,
     fontWeight: "600",
   },
 
-  status: {
-    fontSize: 22,
+  profileName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginTop: 8,
   },
 
-  info: {
+  statusValue: {
+    fontSize: 22,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+
+  value: {
+    fontSize: 22,
+    marginTop: 8,
+  },
+
+  subText: {
+    fontSize: 16,
+    marginTop: 4,
+  },
+
+  message: {
     fontSize: 18,
+    textAlign: "center",
   },
 });
