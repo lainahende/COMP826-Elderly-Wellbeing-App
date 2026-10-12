@@ -6,7 +6,8 @@ import {
   getDocs,
   query,
   serverTimestamp,
-  where,
+  updateDoc,
+  where
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
@@ -74,5 +75,33 @@ export class DatabaseService {
       id: userDocument.id,
       ...userDocument.data(),
     };
+  }
+  async saveReminderSchedule(elderlyUserId: string, times: string[]) {
+    const reminderQuery = query(
+      collection(db, "reminders"),
+      where("elderlyUserId", "==", elderlyUserId),
+    );
+
+    const snapshot = await getDocs(reminderQuery);
+
+    // If a reminder document already exists,
+    // update it.
+    if (!snapshot.empty) {
+      const reminderDocument = snapshot.docs[0];
+
+      await updateDoc(doc(db, "reminders", reminderDocument.id), {
+        times,
+      });
+
+      return reminderDocument.id;
+    }
+
+    // Otherwise create a new one.
+    const document = await addDoc(collection(db, "reminders"), {
+      elderlyUserId,
+      times,
+    });
+
+    return document.id;
   }
 }

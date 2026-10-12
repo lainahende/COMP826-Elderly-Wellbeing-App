@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
+/* --------------------------------------------------
+   Mock functions
+-------------------------------------------------- */
+
 const mockAddDoc = jest.fn();
 const mockCollection = jest.fn();
 const mockDoc = jest.fn();
@@ -8,6 +12,11 @@ const mockGetDocs = jest.fn();
 const mockQuery = jest.fn();
 const mockServerTimestamp = jest.fn();
 const mockWhere = jest.fn();
+const mockUpdateDoc = jest.fn();
+
+/* --------------------------------------------------
+   Mock Firestore
+-------------------------------------------------- */
 
 jest.mock("firebase/firestore", () => ({
   addDoc: mockAddDoc,
@@ -18,13 +27,26 @@ jest.mock("firebase/firestore", () => ({
   query: mockQuery,
   serverTimestamp: mockServerTimestamp,
   where: mockWhere,
+  updateDoc: mockUpdateDoc,
 }));
+
+/* --------------------------------------------------
+   Mock Firebase config
+-------------------------------------------------- */
 
 jest.mock("../src/config/firebase", () => ({
   db: {},
 }));
 
+/* --------------------------------------------------
+   Load DatabaseService after mocks
+-------------------------------------------------- */
+
 const { DatabaseService } = require("../src/services/DatabaseService");
+
+/* --------------------------------------------------
+   Tests
+-------------------------------------------------- */
 
 describe("DatabaseService", () => {
   let databaseService: InstanceType<typeof DatabaseService>;
@@ -70,8 +92,10 @@ describe("DatabaseService", () => {
       docs: [
         {
           id: "checkin1",
+
           data: () => ({
             elderlyUserId: "elderly123",
+
             status: "completed",
           }),
         },
@@ -92,7 +116,7 @@ describe("DatabaseService", () => {
   });
 
   /* ==================================================
-     Reminder schedule
+     Reminder schedule retrieval
   ================================================== */
 
   test("retrieves reminder schedule for an elderly user", async () => {
@@ -100,8 +124,10 @@ describe("DatabaseService", () => {
       docs: [
         {
           id: "reminder1",
+
           data: () => ({
             elderlyUserId: "elderly123",
+
             times: ["08:00", "18:00"],
           }),
         },
@@ -131,7 +157,9 @@ describe("DatabaseService", () => {
 
       data: () => ({
         name: "Test Caregiver",
+
         role: "caregiver",
+
         elderlyUserId: "elderly123",
       }),
     });
@@ -151,6 +179,7 @@ describe("DatabaseService", () => {
 
       data: () => ({
         name: "Test Caregiver",
+
         role: "caregiver",
       }),
     });
@@ -183,7 +212,9 @@ describe("DatabaseService", () => {
 
       data: () => ({
         name: "Mary Smith",
+
         email: "mary@example.com",
+
         role: "elderly",
       }),
     });
@@ -208,5 +239,59 @@ describe("DatabaseService", () => {
     const result = await databaseService.getUserProfile("missing-user");
 
     expect(result).toBeNull();
+  });
+
+  /* ==================================================
+     Save reminder schedule
+  ================================================== */
+
+  test("updates existing reminder schedule", async () => {
+    mockGetDocs.mockResolvedValue({
+      empty: false,
+
+      docs: [
+        {
+          id: "reminder1",
+        },
+      ],
+    });
+
+    mockUpdateDoc.mockResolvedValue(undefined);
+
+    const result = await databaseService.saveReminderSchedule("elderly123", [
+      "08:00",
+      "12:00",
+      "18:00",
+    ]);
+
+    expect(mockUpdateDoc).toHaveBeenCalledWith("document-reference", {
+      times: ["08:00", "12:00", "18:00"],
+    });
+
+    expect(result).toBe("reminder1");
+  });
+
+  test("creates reminder schedule when none exists", async () => {
+    mockGetDocs.mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
+
+    mockAddDoc.mockResolvedValue({
+      id: "reminder123",
+    });
+
+    const result = await databaseService.saveReminderSchedule("elderly123", [
+      "09:00",
+      "17:00",
+    ]);
+
+    expect(mockAddDoc).toHaveBeenCalledWith("collection-reference", {
+      elderlyUserId: "elderly123",
+
+      times: ["09:00", "17:00"],
+    });
+
+    expect(result).toBe("reminder123");
   });
 });
