@@ -36,7 +36,9 @@ export default function ElderlyHistory() {
           return;
         }
 
-        const records = await databaseService.getCheckIns(user.uid);
+        const records = (await databaseService.getCheckIns(
+          user.uid,
+        )) as CheckInRecord[];
 
         const sortedRecords = [...records].sort((a, b) => {
           const aTime = a.timestamp?.toDate().getTime() ?? 0;

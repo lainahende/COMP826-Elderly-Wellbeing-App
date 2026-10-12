@@ -7,6 +7,8 @@ import { User as FirebaseUser, onAuthStateChanged } from "firebase/auth";
 
 import { doc, getDoc } from "firebase/firestore";
 
+import * as Notifications from "expo-notifications";
+
 import { auth, db } from "../config/firebase";
 
 type UserRole = "elderly" | "caregiver" | null;
@@ -19,6 +21,10 @@ export default function RootLayout() {
   const [role, setRole] = useState<UserRole>(null);
 
   const [loading, setLoading] = useState(true);
+
+  /* --------------------------------------------------
+     Authentication listener
+  -------------------------------------------------- */
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -51,6 +57,10 @@ export default function RootLayout() {
 
     return unsubscribe;
   }, []);
+
+  /* --------------------------------------------------
+     Route protection
+  -------------------------------------------------- */
 
   useEffect(() => {
     if (loading) {
@@ -85,6 +95,30 @@ export default function RootLayout() {
     }
   }, [firebaseUser, role, loading, segments]);
 
+  /* --------------------------------------------------
+     Notification tap handling
+  -------------------------------------------------- */
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+
+        if (data?.type === "wellbeing-reminder") {
+          router.push("/elderly/dashboard");
+        }
+      },
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  /* --------------------------------------------------
+     Loading screen
+  -------------------------------------------------- */
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -92,6 +126,10 @@ export default function RootLayout() {
       </View>
     );
   }
+
+  /* --------------------------------------------------
+     Navigation stack
+  -------------------------------------------------- */
 
   return (
     <Stack>

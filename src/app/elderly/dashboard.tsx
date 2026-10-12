@@ -8,6 +8,16 @@ import { CheckInManager } from "../../managers/CheckInManager";
 import { ReminderManager } from "../../managers/ReminderManager";
 import { AuthPresenter } from "../../presenters/AuthPresenter";
 import { DatabaseService } from "../../services/DatabaseService";
+import { NotificationService } from "../../services/NotificationService";
+
+type CheckInRecord = {
+  id: string;
+  elderlyUserId: string;
+  status: string;
+  timestamp?: {
+    toDate: () => Date;
+  };
+};
 
 const formatReminderTime = (time: string) => {
   const [hourText, minute] = time.split(":");
@@ -21,11 +31,45 @@ const formatReminderTime = (time: string) => {
   return `${displayHour}:${minute} ${suffix}`;
 };
 
+const isToday = (date: Date) => {
+  const today = new Date();
+
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
+
+const formatLastCheckIn = (date: Date) => {
+  const time = date.toLocaleTimeString("en-NZ", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (isToday(date)) {
+    return `Today at ${time}`;
+  }
+
+  const formattedDate = date.toLocaleDateString("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return `${formattedDate} at ${time}`;
+};
+
 export default function ElderlyDashboard() {
   const authPresenter = new AuthPresenter();
+
   const checkInManager = new CheckInManager();
+
   const reminderManager = new ReminderManager();
+
   const databaseService = new DatabaseService();
+
+  const notificationService = new NotificationService();
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,12 +77,20 @@ export default function ElderlyDashboard() {
 
   const [loadingReminder, setLoadingReminder] = useState(true);
 
+  const [checkedInToday, setCheckedInToday] = useState(false);
+
+  const [lastCheckIn, setLastCheckIn] = useState<Date | null>(null);
+
+  const [loadingCheckInStatus, setLoadingCheckInStatus] = useState(true);
+
+  /* --------------------------------------------------
+     Load reminder schedule
+  -------------------------------------------------- */
+
   useEffect(() => {
     const loadReminder = async () => {
       try {
         const user = auth.currentUser;
-
-        console.log("Logged in reminder UID:", user?.uid);
 
         if (!user) {
           setNextReminder(null);
@@ -47,11 +99,7 @@ export default function ElderlyDashboard() {
 
         const schedules = await databaseService.getReminderSchedule(user.uid);
 
-        console.log("Reminder schedules:", schedules);
-
         if (schedules.length === 0) {
-          console.log("No reminder documents found");
-
           setNextReminder(null);
           return;
         }
@@ -60,13 +108,18 @@ export default function ElderlyDashboard() {
           (schedule: any) => schedule.times ?? [],
         );
 
-        console.log("Reminder times:", reminderTimes);
-
         const next = reminderManager.getNextReminder(reminderTimes);
 
-        console.log("Next reminder:", next);
-
         setNextReminder(next);
+
+        const permissionGranted =
+          await notificationService.requestPermissions();
+
+        if (permissionGranted) {
+          await notificationService.cancelAllReminders();
+
+          await notificationService.scheduleReminderTimes(reminderTimes);
+        }
       } catch (error) {
         console.error("Unable to load reminder:", error);
 
@@ -78,6 +131,69 @@ export default function ElderlyDashboard() {
 
     loadReminder();
   }, []);
+
+  /* --------------------------------------------------
+     Load current check-in status
+  -------------------------------------------------- */
+
+  useEffect(() => {
+    const loadCheckInStatus = async () => {
+      try {
+        const user = auth.currentUser;
+
+        if (!user) {
+          setCheckedInToday(false);
+          setLastCheckIn(null);
+          return;
+        }
+
+        const records = (await databaseService.getCheckIns(
+          user.uid,
+        )) as CheckInRecord[];
+
+        if (records.length === 0) {
+          setCheckedInToday(false);
+          setLastCheckIn(null);
+          return;
+        }
+
+        const sortedRecords = [...records].sort((a, b) => {
+          const aTime = a.timestamp?.toDate().getTime() ?? 0;
+
+          const bTime = b.timestamp?.toDate().getTime() ?? 0;
+
+          return bTime - aTime;
+        });
+
+        const latest = sortedRecords[0];
+
+        const latestDate = latest.timestamp?.toDate();
+
+        if (!latestDate) {
+          setCheckedInToday(false);
+          setLastCheckIn(null);
+          return;
+        }
+
+        setLastCheckIn(latestDate);
+
+        setCheckedInToday(isToday(latestDate));
+      } catch (error) {
+        console.error("Unable to load check-in status:", error);
+
+        setCheckedInToday(false);
+        setLastCheckIn(null);
+      } finally {
+        setLoadingCheckInStatus(false);
+      }
+    };
+
+    loadCheckInStatus();
+  }, []);
+
+  /* --------------------------------------------------
+     Complete check-in
+  -------------------------------------------------- */
 
   const handleCheckIn = async () => {
     if (submitting) {
@@ -100,6 +216,11 @@ export default function ElderlyDashboard() {
 
       await checkInManager.completeCheckIn(user.uid);
 
+      const now = new Date();
+
+      setLastCheckIn(now);
+      setCheckedInToday(true);
+
       Alert.alert(
         "Check-in Complete",
         "Your wellbeing check-in has been recorded.",
@@ -115,6 +236,10 @@ export default function ElderlyDashboard() {
       setSubmitting(false);
     }
   };
+
+  /* --------------------------------------------------
+     Logout
+  -------------------------------------------------- */
 
   const handleLogout = async () => {
     try {
@@ -138,7 +263,13 @@ export default function ElderlyDashboard() {
       <View style={styles.statusCard}>
         <Text style={styles.statusLabel}>Current Status</Text>
 
-        <Text style={styles.statusValue}>✓ Checked in today</Text>
+        <Text style={styles.statusValue}>
+          {loadingCheckInStatus
+            ? "Loading..."
+            : checkedInToday
+              ? "✓ Checked in today"
+              : "No check-in today"}
+        </Text>
       </View>
 
       <View style={styles.card}>
@@ -161,7 +292,13 @@ export default function ElderlyDashboard() {
         disabled={submitting}
       />
 
-      <Text style={styles.lastCheckIn}>Last check-in: Today at 8:00 AM</Text>
+      <Text style={styles.lastCheckIn}>
+        {loadingCheckInStatus
+          ? "Loading last check-in..."
+          : lastCheckIn
+            ? `Last check-in: ${formatLastCheckIn(lastCheckIn)}`
+            : "No previous check-ins"}
+      </Text>
 
       <LargeButton
         title="View Check-in History"
@@ -204,6 +341,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
     marginTop: 8,
+    textAlign: "center",
   },
 
   card: {
