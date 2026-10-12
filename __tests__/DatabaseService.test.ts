@@ -13,6 +13,7 @@ const mockQuery = jest.fn();
 const mockServerTimestamp = jest.fn();
 const mockWhere = jest.fn();
 const mockUpdateDoc = jest.fn();
+const mockOnSnapshot = jest.fn();
 
 /* --------------------------------------------------
    Mock Firestore
@@ -28,6 +29,7 @@ jest.mock("firebase/firestore", () => ({
   serverTimestamp: mockServerTimestamp,
   where: mockWhere,
   updateDoc: mockUpdateDoc,
+  onSnapshot: mockOnSnapshot,
 }));
 
 /* --------------------------------------------------
@@ -293,5 +295,43 @@ describe("DatabaseService", () => {
     });
 
     expect(result).toBe("reminder123");
+  });
+
+  test("subscribes to real-time check-in updates", () => {
+    const mockCallback = jest.fn();
+    const mockUnsubscribe = jest.fn();
+
+    mockOnSnapshot.mockImplementation((_queryReference, snapshotCallback) => {
+      snapshotCallback({
+        docs: [
+          {
+            id: "checkin1",
+            data: () => ({
+              elderlyUserId: "elderly123",
+              status: "completed",
+            }),
+          },
+        ],
+      });
+
+      return mockUnsubscribe;
+    });
+
+    const unsubscribe = databaseService.subscribeToCheckIns(
+      "elderly123",
+      mockCallback,
+    );
+
+    expect(mockWhere).toHaveBeenCalledWith("elderlyUserId", "==", "elderly123");
+
+    expect(mockCallback).toHaveBeenCalledWith([
+      {
+        id: "checkin1",
+        elderlyUserId: "elderly123",
+        status: "completed",
+      },
+    ]);
+
+    expect(unsubscribe).toBe(mockUnsubscribe);
   });
 });

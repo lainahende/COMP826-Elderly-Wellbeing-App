@@ -75,6 +75,8 @@ export default function CaregiverDashboard() {
   const [nextReminder, setNextReminder] = useState<string | null>(null);
 
   useEffect(() => {
+    let unsubscribeCheckIns: (() => void) | undefined;
+
     const loadDashboard = async () => {
       try {
         const caregiver = auth.currentUser;
@@ -92,30 +94,54 @@ export default function CaregiverDashboard() {
           return;
         }
 
+        /* ----------------------------------------------
+         Load elderly profile
+      ---------------------------------------------- */
+
         const profile = await databaseService.getUserProfile(elderlyUserId);
 
         setElderlyProfile(profile as ElderlyProfile | null);
 
-        const checkIns = (await databaseService.getCheckIns(
+        /* ----------------------------------------------
+         Subscribe to real-time check-ins
+      ---------------------------------------------- */
+
+        unsubscribeCheckIns = databaseService.subscribeToCheckIns(
           elderlyUserId,
-        )) as CheckInRecord[];
+          (checkIns) => {
+            const records = checkIns as CheckInRecord[];
 
-        if (checkIns.length > 0) {
-          const sorted = [...checkIns].sort((a, b) => {
-            const aTime = a.timestamp?.toDate().getTime() ?? 0;
+            if (records.length === 0) {
+              setLastCheckIn(null);
+              setCheckedInToday(false);
+              return;
+            }
 
-            const bTime = b.timestamp?.toDate().getTime() ?? 0;
+            const sorted = [...records].sort((a, b) => {
+              const aTime = a.timestamp?.toDate().getTime() ?? 0;
 
-            return bTime - aTime;
-          });
+              const bTime = b.timestamp?.toDate().getTime() ?? 0;
 
-          const latest = sorted[0].timestamp?.toDate();
+              return bTime - aTime;
+            });
 
-          if (latest) {
+            const latest = sorted[0].timestamp?.toDate();
+
+            if (!latest) {
+              setLastCheckIn(null);
+              setCheckedInToday(false);
+              return;
+            }
+
             setLastCheckIn(latest);
+
             setCheckedInToday(isToday(latest));
-          }
-        }
+          },
+        );
+
+        /* ----------------------------------------------
+         Load reminder schedule
+      ---------------------------------------------- */
 
         const schedules =
           await databaseService.getReminderSchedule(elderlyUserId);
@@ -140,6 +166,12 @@ export default function CaregiverDashboard() {
     };
 
     loadDashboard();
+
+    return () => {
+      if (unsubscribeCheckIns) {
+        unsubscribeCheckIns();
+      }
+    };
   }, []);
 
   const handleLogout = async () => {

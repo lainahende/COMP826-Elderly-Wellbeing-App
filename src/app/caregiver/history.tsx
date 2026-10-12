@@ -74,12 +74,15 @@ export default function CaregiverHistoryScreen() {
   const [linkedUserFound, setLinkedUserFound] = useState(true);
 
   useEffect(() => {
+    let unsubscribeCheckIns: (() => void) | undefined;
+
     const loadHistory = async () => {
       try {
         const caregiver = auth.currentUser;
 
         if (!caregiver) {
           setLinkedUserFound(false);
+          setLoading(false);
           return;
         }
 
@@ -89,32 +92,43 @@ export default function CaregiverHistoryScreen() {
 
         if (!elderlyUserId) {
           setLinkedUserFound(false);
+          setLoading(false);
           return;
         }
 
-        const records = (await databaseService.getCheckIns(
+        unsubscribeCheckIns = databaseService.subscribeToCheckIns(
           elderlyUserId,
-        )) as CheckInRecord[];
+          (records) => {
+            const checkIns = records as CheckInRecord[];
 
-        const sortedRecords = [...records].sort((a, b) => {
-          const aTime = a.timestamp?.toDate().getTime() ?? 0;
+            const sortedRecords = [...checkIns].sort((a, b) => {
+              const aTime = a.timestamp?.toDate().getTime() ?? 0;
 
-          const bTime = b.timestamp?.toDate().getTime() ?? 0;
+              const bTime = b.timestamp?.toDate().getTime() ?? 0;
 
-          return bTime - aTime;
-        });
+              return bTime - aTime;
+            });
 
-        setCheckIns(sortedRecords);
+            setCheckIns(sortedRecords);
+
+            setLoading(false);
+          },
+        );
       } catch (error) {
         console.error("Unable to load caregiver history:", error);
 
         setCheckIns([]);
-      } finally {
         setLoading(false);
       }
     };
 
     loadHistory();
+
+    return () => {
+      if (unsubscribeCheckIns) {
+        unsubscribeCheckIns();
+      }
+    };
   }, []);
 
   if (loading) {

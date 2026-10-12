@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { act, render, screen, waitFor } from "@testing-library/react-native";
 
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 -------------------------------------------------- */
 
 const mockGetLinkedElderlyUserId = jest.fn();
-const mockGetCheckIns = jest.fn();
+const mockSubscribeToCheckIns = jest.fn();
 
 /* --------------------------------------------------
    Mock Firebase
@@ -31,7 +31,7 @@ jest.mock("../src/services/DatabaseService", () => ({
   DatabaseService: jest.fn().mockImplementation(() => ({
     getLinkedElderlyUserId: mockGetLinkedElderlyUserId,
 
-    getCheckIns: mockGetCheckIns,
+    subscribeToCheckIns: mockSubscribeToCheckIns,
   })),
 }));
 
@@ -51,21 +51,40 @@ describe("CaregiverHistoryScreen", () => {
 
     mockGetLinkedElderlyUserId.mockResolvedValue("elderly123");
 
-    mockGetCheckIns.mockResolvedValue([]);
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([]);
+
+      return jest.fn();
+    });
   });
 
-  test("loads check-ins for linked elderly user", async () => {
+  /* ==================================================
+     Loading linked elderly user
+  ================================================== */
+
+  test("subscribes to check-ins for linked elderly user", async () => {
     await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(mockGetLinkedElderlyUserId).toHaveBeenCalledWith("caregiver123");
     });
 
-    expect(mockGetCheckIns).toHaveBeenCalledWith("elderly123");
+    expect(mockSubscribeToCheckIns).toHaveBeenCalledWith(
+      "elderly123",
+      expect.any(Function),
+    );
   });
 
+  /* ==================================================
+     Empty state
+  ================================================== */
+
   test("shows empty state when no check-ins exist", async () => {
-    mockGetCheckIns.mockResolvedValue([]);
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([]);
+
+      return jest.fn();
+    });
 
     await render(<CaregiverHistoryScreen />);
 
@@ -74,20 +93,28 @@ describe("CaregiverHistoryScreen", () => {
     });
   });
 
+  /* ==================================================
+     Completed check-ins
+  ================================================== */
+
   test("displays completed check-in from today", async () => {
     const today = new Date();
 
-    mockGetCheckIns.mockResolvedValue([
-      {
-        id: "checkin1",
-        elderlyUserId: "elderly123",
-        status: "completed",
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([
+        {
+          id: "checkin1",
+          elderlyUserId: "elderly123",
+          status: "completed",
 
-        timestamp: {
-          toDate: () => today,
+          timestamp: {
+            toDate: () => today,
+          },
         },
-      },
-    ]);
+      ]);
+
+      return jest.fn();
+    });
 
     await render(<CaregiverHistoryScreen />);
 
@@ -103,17 +130,21 @@ describe("CaregiverHistoryScreen", () => {
 
     yesterday.setDate(yesterday.getDate() - 1);
 
-    mockGetCheckIns.mockResolvedValue([
-      {
-        id: "checkin1",
-        elderlyUserId: "elderly123",
-        status: "completed",
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([
+        {
+          id: "checkin1",
+          elderlyUserId: "elderly123",
+          status: "completed",
 
-        timestamp: {
-          toDate: () => yesterday,
+          timestamp: {
+            toDate: () => yesterday,
+          },
         },
-      },
-    ]);
+      ]);
+
+      return jest.fn();
+    });
 
     await render(<CaregiverHistoryScreen />);
 
@@ -122,20 +153,28 @@ describe("CaregiverHistoryScreen", () => {
     });
   });
 
+  /* ==================================================
+     Missed check-ins
+  ================================================== */
+
   test("displays missed status", async () => {
     const today = new Date();
 
-    mockGetCheckIns.mockResolvedValue([
-      {
-        id: "checkin1",
-        elderlyUserId: "elderly123",
-        status: "missed",
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([
+        {
+          id: "checkin1",
+          elderlyUserId: "elderly123",
+          status: "missed",
 
-        timestamp: {
-          toDate: () => today,
+          timestamp: {
+            toDate: () => today,
+          },
         },
-      },
-    ]);
+      ]);
+
+      return jest.fn();
+    });
 
     await render(<CaregiverHistoryScreen />);
 
@@ -143,6 +182,10 @@ describe("CaregiverHistoryScreen", () => {
       expect(screen.getByText("Missed")).toBeTruthy();
     });
   });
+
+  /* ==================================================
+     Sorting
+  ================================================== */
 
   test("sorts check-ins newest first", async () => {
     const older = new Date();
@@ -153,27 +196,31 @@ describe("CaregiverHistoryScreen", () => {
 
     newer.setHours(newer.getHours() - 1);
 
-    mockGetCheckIns.mockResolvedValue([
-      {
-        id: "older",
-        elderlyUserId: "elderly123",
-        status: "completed",
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      callback([
+        {
+          id: "older",
+          elderlyUserId: "elderly123",
+          status: "completed",
 
-        timestamp: {
-          toDate: () => older,
+          timestamp: {
+            toDate: () => older,
+          },
         },
-      },
 
-      {
-        id: "newer",
-        elderlyUserId: "elderly123",
-        status: "missed",
+        {
+          id: "newer",
+          elderlyUserId: "elderly123",
+          status: "missed",
 
-        timestamp: {
-          toDate: () => newer,
+          timestamp: {
+            toDate: () => newer,
+          },
         },
-      },
-    ]);
+      ]);
+
+      return jest.fn();
+    });
 
     await render(<CaregiverHistoryScreen />);
 
@@ -188,6 +235,54 @@ describe("CaregiverHistoryScreen", () => {
     expect(statusItems[1].props.children).toBe("✓ Completed");
   });
 
+  /* ==================================================
+     Real-time updates
+  ================================================== */
+
+  test("updates history when a new check-in arrives", async () => {
+    let checkInCallback: ((checkIns: any[]) => void) | undefined;
+
+    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
+      checkInCallback = callback;
+
+      callback([]);
+
+      return jest.fn();
+    });
+
+    await render(<CaregiverHistoryScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No check-in records found.")).toBeTruthy();
+    });
+
+    const now = new Date();
+
+    await act(async () => {
+      checkInCallback?.([
+        {
+          id: "checkin-new",
+          elderlyUserId: "elderly123",
+          status: "completed",
+
+          timestamp: {
+            toDate: () => now,
+          },
+        },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("✓ Completed")).toBeTruthy();
+    });
+
+    expect(screen.getByText(/Today -/)).toBeTruthy();
+  });
+
+  /* ==================================================
+     No linked elderly user
+  ================================================== */
+
   test("shows message when caregiver has no linked elderly user", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
 
@@ -201,6 +296,6 @@ describe("CaregiverHistoryScreen", () => {
       ).toBeTruthy();
     });
 
-    expect(mockGetCheckIns).not.toHaveBeenCalled();
+    expect(mockSubscribeToCheckIns).not.toHaveBeenCalled();
   });
 });

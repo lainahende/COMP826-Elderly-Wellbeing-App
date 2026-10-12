@@ -4,10 +4,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   serverTimestamp,
   updateDoc,
-  where
+  where,
 } from "firebase/firestore";
 
 import { db } from "../config/firebase";
@@ -103,5 +104,25 @@ export class DatabaseService {
     });
 
     return document.id;
+  }
+  subscribeToCheckIns(
+    elderlyUserId: string,
+    callback: (checkIns: any[]) => void,
+  ) {
+    const checkInQuery = query(
+      collection(db, "checkIns"),
+      where("elderlyUserId", "==", elderlyUserId),
+    );
+
+    const unsubscribe = onSnapshot(checkInQuery, (snapshot) => {
+      const checkIns = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }));
+
+      callback(checkIns);
+    });
+
+    return unsubscribe;
   }
 }
