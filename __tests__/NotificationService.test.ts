@@ -1,118 +1,176 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
-import * as Notifications from "expo-notifications";
+/* --------------------------------------------------
+   Mock functions
+-------------------------------------------------- */
+
+const mockGetPermissions = jest.fn();
+const mockRequestPermissions = jest.fn();
+const mockSchedule = jest.fn();
+const mockCancelAll = jest.fn();
+const mockSetNotificationHandler = jest.fn();
+
+/* --------------------------------------------------
+   Mock expo-notifications
+-------------------------------------------------- */
 
 jest.mock("expo-notifications", () => ({
-  setNotificationHandler: jest.fn(),
-  getPermissionsAsync: jest.fn(),
-  requestPermissionsAsync: jest.fn(),
-  scheduleNotificationAsync: jest.fn(),
-  cancelAllScheduledNotificationsAsync: jest.fn(),
+  setNotificationHandler: mockSetNotificationHandler,
+
+  getPermissionsAsync: mockGetPermissions,
+
+  requestPermissionsAsync: mockRequestPermissions,
+
+  scheduleNotificationAsync: mockSchedule,
+
+  cancelAllScheduledNotificationsAsync: mockCancelAll,
 
   SchedulableTriggerInputTypes: {
     DAILY: "daily",
   },
 }));
 
-import { NotificationService } from "../src/services/NotificationService";
+/* --------------------------------------------------
+   Import service after mocks
+-------------------------------------------------- */
 
-const mockGetPermissions =
-  Notifications.getPermissionsAsync as jest.MockedFunction<
-    typeof Notifications.getPermissionsAsync
-  >;
+const { NotificationService } = require("../src/services/NotificationService");
 
-const mockRequestPermissions =
-  Notifications.requestPermissionsAsync as jest.MockedFunction<
-    typeof Notifications.requestPermissionsAsync
-  >;
-
-const mockSchedule =
-  Notifications.scheduleNotificationAsync as jest.MockedFunction<
-    typeof Notifications.scheduleNotificationAsync
-  >;
-
-const mockCancelAll =
-  Notifications.cancelAllScheduledNotificationsAsync as jest.MockedFunction<
-    typeof Notifications.cancelAllScheduledNotificationsAsync
-  >;
+/* --------------------------------------------------
+   Tests
+-------------------------------------------------- */
 
 describe("NotificationService", () => {
+  let notificationService: InstanceType<typeof NotificationService>;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    notificationService = new NotificationService();
+
+    mockGetPermissions.mockResolvedValue({
+      granted: false,
+    });
+
+    mockRequestPermissions.mockResolvedValue({
+      granted: true,
+    });
+
+    mockSchedule.mockResolvedValue("notification-id");
+
+    mockCancelAll.mockResolvedValue(undefined);
   });
 
   test("returns true when notification permission is already granted", async () => {
     mockGetPermissions.mockResolvedValue({
       granted: true,
-      status: "granted",
-      canAskAgain: true,
-      expires: "never",
-    } as any);
+    });
 
-    const service = new NotificationService();
-
-    const result = await service.requestPermissions();
+    const result = await notificationService.requestPermissions();
 
     expect(result).toBe(true);
 
     expect(mockRequestPermissions).not.toHaveBeenCalled();
   });
 
-  test("requests notification permission when not already granted", async () => {
+  test("requests permission when not already granted", async () => {
     mockGetPermissions.mockResolvedValue({
       granted: false,
-      status: "undetermined",
-      canAskAgain: true,
-      expires: "never",
-    } as any);
+    });
 
     mockRequestPermissions.mockResolvedValue({
       granted: true,
-      status: "granted",
-      canAskAgain: true,
-      expires: "never",
-    } as any);
+    });
 
-    const service = new NotificationService();
+    const result = await notificationService.requestPermissions();
 
-    const result = await service.requestPermissions();
-
-    expect(mockRequestPermissions).toHaveBeenCalled();
+    expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
 
     expect(result).toBe(true);
   });
 
-  test("schedules a wellbeing reminder", async () => {
-    mockSchedule.mockResolvedValue("notification123");
+  test("returns false when notification permission is denied", async () => {
+    mockGetPermissions.mockResolvedValue({
+      granted: false,
+    });
 
-    const service = new NotificationService();
+    mockRequestPermissions.mockResolvedValue({
+      granted: false,
+    });
 
-    const result = await service.scheduleDailyReminder("10:30");
+    const result = await notificationService.requestPermissions();
 
-    expect(mockSchedule).toHaveBeenCalled();
+    expect(result).toBe(false);
+  });
 
-    expect(result).toBe("notification123");
+  test("schedules one daily reminder", async () => {
+    mockSchedule.mockResolvedValue("reminder-id");
+
+    const result = await notificationService.scheduleDailyReminder("10:30");
+
+    expect(mockSchedule).toHaveBeenCalledWith({
+      content: {
+        title: "Wellbeing Check-in",
+
+        body: "It's time to complete your wellbeing check-in.",
+
+        data: {
+          type: "wellbeing-reminder",
+        },
+      },
+
+      trigger: {
+        type: "daily",
+        hour: 10,
+        minute: 30,
+      },
+    });
+
+    expect(result).toBe("reminder-id");
   });
 
   test("schedules all configured reminder times", async () => {
-    mockSchedule.mockResolvedValueOnce("one").mockResolvedValueOnce("two");
+    mockSchedule
+      .mockResolvedValueOnce("reminder-1")
+      .mockResolvedValueOnce("reminder-2")
+      .mockResolvedValueOnce("reminder-3");
 
-    const service = new NotificationService();
+    const result = await notificationService.scheduleReminderTimes([
+      "08:00",
+      "12:00",
+      "18:00",
+    ]);
 
-    const result = await service.scheduleReminderTimes(["08:00", "18:00"]);
+    expect(mockSchedule).toHaveBeenCalledTimes(3);
 
-    expect(mockSchedule).toHaveBeenCalledTimes(2);
-
-    expect(result).toEqual(["one", "two"]);
+    expect(result).toEqual(["reminder-1", "reminder-2", "reminder-3"]);
   });
 
-  test("cancels existing reminders", async () => {
-    mockCancelAll.mockResolvedValue();
-
-    const service = new NotificationService();
-
-    await service.cancelAllReminders();
+  test("cancels all scheduled reminders", async () => {
+    await notificationService.cancelAllReminders();
 
     expect(mockCancelAll).toHaveBeenCalledTimes(1);
+  });
+
+  test("sends missed check-in notification", async () => {
+    mockSchedule.mockResolvedValue("missed-notification");
+
+    const result = await notificationService.sendMissedCheckInNotification();
+
+    expect(mockSchedule).toHaveBeenCalledWith({
+      content: {
+        title: "Missed Wellbeing Check-in",
+
+        body: "The elderly user has missed a scheduled wellbeing check-in.",
+
+        data: {
+          type: "missed-check-in",
+        },
+      },
+
+      trigger: null,
+    });
+
+    expect(result).toBe("missed-notification");
   });
 });

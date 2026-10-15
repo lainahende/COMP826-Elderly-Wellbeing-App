@@ -9,11 +9,11 @@ const mockCollection = jest.fn();
 const mockDoc = jest.fn();
 const mockGetDoc = jest.fn();
 const mockGetDocs = jest.fn();
+const mockOnSnapshot = jest.fn();
 const mockQuery = jest.fn();
 const mockServerTimestamp = jest.fn();
-const mockWhere = jest.fn();
 const mockUpdateDoc = jest.fn();
-const mockOnSnapshot = jest.fn();
+const mockWhere = jest.fn();
 
 /* --------------------------------------------------
    Mock Firestore
@@ -25,11 +25,11 @@ jest.mock("firebase/firestore", () => ({
   doc: mockDoc,
   getDoc: mockGetDoc,
   getDocs: mockGetDocs,
+  onSnapshot: mockOnSnapshot,
   query: mockQuery,
   serverTimestamp: mockServerTimestamp,
-  where: mockWhere,
   updateDoc: mockUpdateDoc,
-  onSnapshot: mockOnSnapshot,
+  where: mockWhere,
 }));
 
 /* --------------------------------------------------
@@ -115,6 +115,50 @@ describe("DatabaseService", () => {
         status: "completed",
       },
     ]);
+  });
+
+  /* ==================================================
+     Real-time check-ins
+  ================================================== */
+
+  test("subscribes to real-time check-in updates", () => {
+    const mockCallback = jest.fn();
+    const mockUnsubscribe = jest.fn();
+
+    mockOnSnapshot.mockImplementation((_queryReference, snapshotCallback) => {
+      snapshotCallback({
+        docs: [
+          {
+            id: "checkin1",
+
+            data: () => ({
+              elderlyUserId: "elderly123",
+
+              status: "completed",
+            }),
+          },
+        ],
+      });
+
+      return mockUnsubscribe;
+    });
+
+    const unsubscribe = databaseService.subscribeToCheckIns(
+      "elderly123",
+      mockCallback,
+    );
+
+    expect(mockWhere).toHaveBeenCalledWith("elderlyUserId", "==", "elderly123");
+
+    expect(mockCallback).toHaveBeenCalledWith([
+      {
+        id: "checkin1",
+        elderlyUserId: "elderly123",
+        status: "completed",
+      },
+    ]);
+
+    expect(unsubscribe).toBe(mockUnsubscribe);
   });
 
   /* ==================================================
@@ -297,41 +341,87 @@ describe("DatabaseService", () => {
     expect(result).toBe("reminder123");
   });
 
-  test("subscribes to real-time check-in updates", () => {
-    const mockCallback = jest.fn();
-    const mockUnsubscribe = jest.fn();
+  /* ==================================================
+     Missed check-ins
+  ================================================== */
 
-    mockOnSnapshot.mockImplementation((_queryReference, snapshotCallback) => {
-      snapshotCallback({
-        docs: [
-          {
-            id: "checkin1",
-            data: () => ({
-              elderlyUserId: "elderly123",
-              status: "completed",
-            }),
-          },
-        ],
-      });
-
-      return mockUnsubscribe;
+  test("creates a missed check-in when none exists", async () => {
+    mockGetDocs.mockResolvedValue({
+      empty: true,
+      docs: [],
     });
 
-    const unsubscribe = databaseService.subscribeToCheckIns(
+    mockAddDoc.mockResolvedValue({
+      id: "missed123",
+    });
+
+    const result = await databaseService.createMissedCheckIn(
       "elderly123",
-      mockCallback,
+      "10:00",
+      "2026-10-13",
     );
 
     expect(mockWhere).toHaveBeenCalledWith("elderlyUserId", "==", "elderly123");
 
-    expect(mockCallback).toHaveBeenCalledWith([
-      {
-        id: "checkin1",
-        elderlyUserId: "elderly123",
-        status: "completed",
-      },
-    ]);
+    expect(mockWhere).toHaveBeenCalledWith("status", "==", "missed");
 
-    expect(unsubscribe).toBe(mockUnsubscribe);
+    expect(mockWhere).toHaveBeenCalledWith("scheduledTime", "==", "10:00");
+
+    expect(mockWhere).toHaveBeenCalledWith("scheduledDate", "==", "2026-10-13");
+
+    expect(mockAddDoc).toHaveBeenCalledWith("collection-reference", {
+      elderlyUserId: "elderly123",
+
+      status: "missed",
+
+      scheduledTime: "10:00",
+
+      scheduledDate: "2026-10-13",
+
+      timestamp: "server-timestamp",
+    });
+
+    expect(result).toBe("missed123");
+  });
+
+  test("does not create duplicate missed check-in for same reminder occurrence", async () => {
+    mockGetDocs.mockResolvedValue({
+      empty: false,
+
+      docs: [
+        {
+          id: "existing-missed",
+        },
+      ],
+    });
+
+    const result = await databaseService.createMissedCheckIn(
+      "elderly123",
+      "10:00",
+      "2026-10-13",
+    );
+
+    expect(mockAddDoc).not.toHaveBeenCalled();
+
+    expect(result).toBe("existing-missed");
+  });
+
+  test("uses date when checking for duplicate missed reminder", async () => {
+    mockGetDocs.mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
+
+    mockAddDoc.mockResolvedValue({
+      id: "missed124",
+    });
+
+    await databaseService.createMissedCheckIn(
+      "elderly123",
+      "10:00",
+      "2026-10-14",
+    );
+
+    expect(mockWhere).toHaveBeenCalledWith("scheduledDate", "==", "2026-10-14");
   });
 });

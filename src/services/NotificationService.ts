@@ -60,4 +60,20 @@ export class NotificationService {
   async cancelAllReminders() {
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
+
+  async sendMissedCheckInNotification(): Promise<string> {
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Missed Wellbeing Check-in",
+
+        body: "The elderly user has missed a scheduled wellbeing check-in.",
+
+        data: {
+          type: "missed-check-in",
+        },
+      },
+
+      trigger: null,
+    });
+  }
 }

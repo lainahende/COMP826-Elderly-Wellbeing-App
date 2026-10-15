@@ -1,5 +1,6 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import {
   ActivityIndicator,
   Alert,
@@ -11,9 +12,11 @@ import {
 
 import LargeButton from "../../components/LargeButton";
 import { auth } from "../../config/firebase";
+import { MissedCheckInManager } from "../../managers/MissedCheckInManager";
 import { ReminderManager } from "../../managers/ReminderManager";
 import { AuthPresenter } from "../../presenters/AuthPresenter";
 import { DatabaseService } from "../../services/DatabaseService";
+import { NotificationService } from "../../services/NotificationService";
 
 type CheckInRecord = {
   id: string;
@@ -51,7 +54,9 @@ const formatReminderTime = (time: string) => {
   const [hourText, minute] = time.split(":");
 
   const hour = Number(hourText);
+
   const suffix = hour >= 12 ? "PM" : "AM";
+
   const displayHour = hour % 12 || 12;
 
   return `${displayHour}:${minute} ${suffix}`;
@@ -59,7 +64,13 @@ const formatReminderTime = (time: string) => {
 
 export default function CaregiverDashboard() {
   const databaseService = new DatabaseService();
+
   const reminderManager = new ReminderManager();
+
+  const missedCheckInManager = new MissedCheckInManager();
+
+  const notificationService = new NotificationService();
+
   const authPresenter = new AuthPresenter();
 
   const [loading, setLoading] = useState(true);
@@ -73,6 +84,10 @@ export default function CaregiverDashboard() {
   const [lastCheckIn, setLastCheckIn] = useState<Date | null>(null);
 
   const [nextReminder, setNextReminder] = useState<string | null>(null);
+
+  const seenMissedCheckInIds = useRef<Set<string>>(new Set());
+
+  const initialSnapshotReceived = useRef(false);
 
   useEffect(() => {
     let unsubscribeCheckIns: (() => void) | undefined;
@@ -91,29 +106,67 @@ export default function CaregiverDashboard() {
 
         if (!elderlyUserId) {
           setElderlyProfile(null);
+
           return;
         }
 
-        /* ----------------------------------------------
-         Load elderly profile
-      ---------------------------------------------- */
+        /* ------------------------------------------
+             Load elderly profile
+          ------------------------------------------ */
 
         const profile = await databaseService.getUserProfile(elderlyUserId);
 
         setElderlyProfile(profile as ElderlyProfile | null);
 
-        /* ----------------------------------------------
-         Subscribe to real-time check-ins
-      ---------------------------------------------- */
+        /* ------------------------------------------
+             Subscribe to real-time check-ins
+          ------------------------------------------ */
 
         unsubscribeCheckIns = databaseService.subscribeToCheckIns(
           elderlyUserId,
-          (checkIns) => {
+          async (checkIns) => {
             const records = checkIns as CheckInRecord[];
+
+            /* ------------------------------------------
+                     Detect new missed check-ins
+                  ------------------------------------------ */
+
+            const missedRecords = records.filter(
+              (checkIn) => checkIn.status === "missed",
+            );
+
+            if (!initialSnapshotReceived.current) {
+              missedRecords.forEach((record) => {
+                seenMissedCheckInIds.current.add(record.id);
+              });
+
+              initialSnapshotReceived.current = true;
+            } else {
+              const newMissedRecords = missedRecords.filter(
+                (record) => !seenMissedCheckInIds.current.has(record.id),
+              );
+
+              for (const record of newMissedRecords) {
+                seenMissedCheckInIds.current.add(record.id);
+
+                const permissionGranted =
+                  await notificationService.requestPermissions();
+
+                if (permissionGranted) {
+                  await notificationService.sendMissedCheckInNotification();
+                }
+              }
+            }
+
+            /* ------------------------------------------
+                     Existing dashboard status logic
+                  ------------------------------------------ */
 
             if (records.length === 0) {
               setLastCheckIn(null);
+
               setCheckedInToday(false);
+
               return;
             }
 
@@ -129,19 +182,23 @@ export default function CaregiverDashboard() {
 
             if (!latest) {
               setLastCheckIn(null);
+
               setCheckedInToday(false);
+
               return;
             }
 
             setLastCheckIn(latest);
 
-            setCheckedInToday(isToday(latest));
+            setCheckedInToday(
+              isToday(latest) && sorted[0].status === "completed",
+            );
           },
         );
 
-        /* ----------------------------------------------
-         Load reminder schedule
-      ---------------------------------------------- */
+        /* ------------------------------------------
+             Load reminder schedule
+          ------------------------------------------ */
 
         const schedules =
           await databaseService.getReminderSchedule(elderlyUserId);
@@ -153,6 +210,25 @@ export default function CaregiverDashboard() {
         const next = reminderManager.getNextReminder(reminderTimes);
 
         setNextReminder(next);
+
+        /* ------------------------------------------
+             Process missed reminders
+          ------------------------------------------ */
+
+        const existingCheckIns = (await databaseService.getCheckIns(
+          elderlyUserId,
+        )) as CheckInRecord[];
+
+        const completedCheckIns = existingCheckIns
+          .filter((checkIn) => checkIn.status === "completed")
+          .map((checkIn) => checkIn.timestamp?.toDate())
+          .filter((date): date is Date => date !== undefined);
+
+        await missedCheckInManager.processMissedReminders(
+          elderlyUserId,
+          reminderTimes,
+          completedCheckIns,
+        );
       } catch (error) {
         console.error("Unable to load caregiver dashboard:", error);
 
@@ -177,6 +253,7 @@ export default function CaregiverDashboard() {
   const handleLogout = async () => {
     try {
       await authPresenter.logout();
+
       router.replace("/");
     } catch (error) {
       console.error(error);

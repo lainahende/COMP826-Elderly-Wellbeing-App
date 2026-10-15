@@ -125,4 +125,33 @@ export class DatabaseService {
 
     return unsubscribe;
   }
+  async createMissedCheckIn(
+    elderlyUserId: string,
+    scheduledTime: string,
+    scheduledDate: string,
+  ) {
+    const existingQuery = query(
+      collection(db, "checkIns"),
+      where("elderlyUserId", "==", elderlyUserId),
+      where("status", "==", "missed"),
+      where("scheduledTime", "==", scheduledTime),
+      where("scheduledDate", "==", scheduledDate),
+    );
+
+    const existingSnapshot = await getDocs(existingQuery);
+
+    if (!existingSnapshot.empty) {
+      return existingSnapshot.docs[0].id;
+    }
+
+    const document = await addDoc(collection(db, "checkIns"), {
+      elderlyUserId,
+      status: "missed",
+      scheduledTime,
+      scheduledDate,
+      timestamp: serverTimestamp(),
+    });
+
+    return document.id;
+  }
 }

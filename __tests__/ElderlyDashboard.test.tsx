@@ -233,30 +233,34 @@ describe("ElderlyDashboard", () => {
   });
 
   test("uses the newest check-in as the last check-in", async () => {
-    const older = new Date("2026-10-12T08:00:00");
+    const today = new Date();
 
-    const newer = new Date("2026-10-13T09:30:00");
+    const olderCheckIn = new Date(today);
+    olderCheckIn.setHours(today.getHours() - 2);
+
+    const newerCheckIn = new Date(today);
+    newerCheckIn.setHours(today.getHours() - 1);
 
     mockGetCheckIns.mockResolvedValue([
       {
-        id: "older",
+        id: "checkin1",
         elderlyUserId: "elderly123",
         status: "completed",
         timestamp: {
-          toDate: () => older,
+          toDate: () => olderCheckIn,
         },
       },
       {
-        id: "newer",
+        id: "checkin2",
         elderlyUserId: "elderly123",
         status: "completed",
         timestamp: {
-          toDate: () => newer,
+          toDate: () => newerCheckIn,
         },
       },
     ]);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText(/Last check-in: Today at/)).toBeTruthy();
