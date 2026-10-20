@@ -134,7 +134,7 @@ An Android emulator or iOS simulator may also be used if the required developmen
 Open a terminal and clone the GitHub repository:
 
 ```bash
-git clone <REPOSITORY_URL>
+git clone https://github.com/lainahende/COMP826-Elderly-Wellbeing-App.git
 ```
 
 Navigate into the project:
