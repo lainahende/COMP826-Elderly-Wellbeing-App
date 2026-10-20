@@ -2,116 +2,142 @@
 
 A cross-platform mobile application designed to support older adults living independently through scheduled wellbeing reminders and simple check-ins, while providing caregivers with access to wellbeing information.
 
-Developed as part of **COMP826 Mobile Systems Development** at Auckland University of Technology (AUT).
+**Course:** COMP826 Mobile Systems Development  
+**Institution:** Auckland University of Technology (AUT)  
+**Assessment:** Milestone 2 — Prototype, Evaluation and Recommendations  
+**Developer:** Laina Hende
+
+---
 
 ## 1. Project Overview
 
-The Elderly Wellbeing Check-in System provides a simple, non-intrusive approach to supporting older adults living independently.
+The Elderly Wellbeing Check-in System is a mobile application designed to support older adults living independently while providing reassurance to their caregivers.
 
-Rather than relying on wearable devices, continuous monitoring or medical data, the application allows elderly users to confirm their wellbeing through a one-touch check-in.
+Rather than relying on wearable devices, continuous monitoring or the collection of detailed medical information, the system provides a simple approach based on scheduled wellbeing reminders and one-touch check-ins.
 
-Caregivers can monitor completed and missed check-ins, view historical records and configure reminder schedules.
+The application provides two role-based interfaces within a single mobile application:
 
-The application contains two role-based interfaces within a single React Native application, supported by Firebase for authentication, data storage and synchronisation.
+- **Elderly users:** Receive scheduled reminders, complete wellbeing check-ins and review their check-in history.
+- **Caregivers:** Monitor wellbeing information, manage reminder schedules and review completed or missed check-ins.
+
+The prototype uses React Native and Expo for cross-platform development, with Firebase Authentication and Cloud Firestore providing authentication, data storage and synchronisation.
+
+The system is intended as an academic prototype and is not a replacement for medical monitoring or emergency services.
 
 ## 2. Key Features
 
-### Elderly User
+### Elderly Dashboard
 
-- **One-touch wellbeing check-in:** Confirm wellbeing using the "I'M OK" button.
-- **Current wellbeing status:** View whether a check-in has been completed today.
-- **Scheduled reminders:** Receive local notifications at configured reminder times.
-- **Next check-in:** View the next scheduled reminder.
-- **Check-in history:** Review completed and missed check-in records.
+- One-touch wellbeing confirmation using the **I'M OK ✓** button.
+- Current wellbeing status indicating whether a check-in has been completed today.
+- Display of the next scheduled reminder.
+- Local notifications for scheduled wellbeing reminders.
+- Check-in history displaying completed and missed records.
+- Simple, accessible interface with large buttons and readable text.
 
-### Caregiver
+### Caregiver Dashboard
 
-- **Linked elderly profile:** Access wellbeing information for the linked elderly user.
-- **Wellbeing monitoring:** View the current check-in status and most recent completed check-in.
-- **Reminder management:** Add, delete and save scheduled reminder times.
-- **Check-in history:** Review completed and missed check-in records.
-- **Real-time synchronisation:** Receive updated wellbeing information through Firestore listeners.
-- **Missed check-in alerts:** Trigger local notifications when new missed check-in records are detected while the caregiver application is running and subscribed.
+- View the linked elderly user's profile.
+- Monitor the elderly user's current wellbeing status.
+- View the next scheduled reminder and most recent check-in.
+- Add, remove and save reminder times.
+- Review completed and missed check-in history.
+- Receive updates to check-in information through Firestore real-time listeners.
+- Receive local notifications for newly detected missed check-ins while the caregiver dashboard is running.
 
-### Shared Features
+### Authentication and Shared Functionality
 
-- Email and password authentication.
-- Role-based navigation and access.
-- Firestore cloud data storage.
-- Mobile-friendly and accessible user interfaces.
+- Firebase email and password authentication.
+- Role-based navigation for elderly users and caregivers.
+- Route protection based on the authenticated user's role.
+- Cloud storage of profiles, reminders and check-in records.
+- Synchronisation of wellbeing information between users.
 
 ## 3. Technology Stack
 
-| Technology                   | Purpose                                       |
-| ---------------------------- | --------------------------------------------- |
-| React Native                 | Cross-platform mobile application development |
-| Expo                         | Development environment and mobile tooling    |
-| TypeScript                   | Type-safe application development             |
-| Expo Router                  | File-based navigation                         |
-| Firebase Authentication      | User authentication                           |
-| Cloud Firestore              | Cloud data storage and synchronisation        |
-| Expo Notifications           | Local reminder and notification functionality |
-| Jest                         | Automated testing                             |
-| React Native Testing Library | Component and interaction testing             |
-| Git and GitHub               | Version control and source management         |
+| Technology                   | Purpose                                             |
+| ---------------------------- | --------------------------------------------------- |
+| React Native                 | Cross-platform mobile application development       |
+| Expo                         | Mobile development and testing environment          |
+| TypeScript                   | Type-safe application implementation                |
+| Expo Router                  | File-based navigation                               |
+| Firebase Authentication      | Email and password authentication                   |
+| Cloud Firestore              | Database storage and synchronisation                |
+| Expo Notifications           | Local device notifications                          |
+| Jest                         | Automated testing                                   |
+| React Native Testing Library | UI component and interaction testing                |
+| Git and GitHub               | Version control and development artefact management |
 
-## 4. Project Architecture
+## 4. Project Structure
 
-The application follows a Model-View-Presenter (MVP)-inspired architecture, separating the user interface, application logic and data services.
+The application uses a Model-View-Presenter (MVP)-inspired architecture to separate interface components, application logic and supporting services.
 
-### Views
+The main project directories are organised as follows:
 
-Located within `src/app/`, these components provide the application's user interfaces.
+```text
+elderly-wellbeing-app/
+├── __tests__/                 # Automated test suites
+├── src/
+│   ├── app/                   # Application screens and navigation
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx
+│   │   ├── elderly/
+│   │   │   ├── dashboard.tsx
+│   │   │   └── history.tsx
+│   │   └── caregiver/
+│   │       ├── dashboard.tsx
+│   │       ├── history.tsx
+│   │       └── schedule.tsx
+│   ├── components/            # Reusable interface components
+│   ├── config/
+│   │   └── firebase.ts        # Firebase client configuration
+│   ├── managers/              # Application and business logic
+│   ├── models/                # Data models, where applicable
+│   ├── presenters/            # Presentation and authentication logic
+│   └── services/              # Database and notification services
+├── package.json
+├── tsconfig.app.json
+└── README.md
+```
 
-- `index.tsx` — Login screen
-- `elderly/dashboard.tsx` — Elderly dashboard and wellbeing check-in
-- `elderly/history.tsx` — Elderly check-in history
-- `caregiver/dashboard.tsx` — Caregiver monitoring dashboard
-- `caregiver/history.tsx` — Caregiver check-in history
-- `caregiver/schedule.tsx` — Reminder schedule management
+### Architecture Components
 
-### Presenters and Managers
+**Views:** React Native screens responsible for displaying information and handling user interactions.
 
-Presenters and managers coordinate application logic and user interactions.
+**Presenters:** Coordinate presentation-related operations, including authentication.
 
-- `AuthPresenter` — Authentication operations
-- `CheckInManager` — Wellbeing check-in operations
-- `ReminderManager` — Reminder scheduling logic
-- `MissedCheckInManager` — Detection and processing of missed reminders
+**Managers:** Implement application logic for wellbeing check-ins, reminder scheduling and missed-check-in processing.
 
-### Services
+**Services:** Provide access to Firebase and device notification functionality.
 
-Services support communication with Firebase and device functionality.
-
-- `DatabaseService` — Firestore operations and real-time subscriptions
-- `NotificationService` — Notification permissions and scheduling
-
-The architecture separates responsibilities to improve maintainability, reuse and automated testing.
+The implementation is inspired by MVP rather than a strict implementation of the pattern, as some application logic and state management remain within React components.
 
 ## 5. Prerequisites
 
-Before running the application, install or prepare:
+Before installing the project, ensure the following are available:
 
 - Node.js and npm
 - Git
-- A code editor such as Visual Studio Code
-- A Firebase project
-- An Android or iOS device, or a compatible emulator/simulator
-- Expo Go for supported development features, or an Expo development build for features requiring additional native capabilities
+- A code editor, such as Visual Studio Code
+- A compatible Android or iOS device
+- Expo Go or an appropriate Expo development build
+- An internet connection
 
-An internet connection is required for Firebase authentication and cloud synchronisation.
+An Android emulator or iOS simulator may also be used if the required development tools are installed.
 
-## 6. Installation
+**Note:** Some notification functionality may require an Expo development build and a physical device. Notification behaviour should be tested on the intended platform.
+
+## 6. Installation and Execution
 
 ### Step 1: Clone the Repository
 
-Open a terminal and clone the repository:
+Open a terminal and clone the GitHub repository:
 
 ```bash
 git clone <REPOSITORY_URL>
 ```
 
-Navigate into the project directory:
+Navigate into the project:
 
 ```bash
 cd elderly-wellbeing-app
@@ -119,24 +145,36 @@ cd elderly-wellbeing-app
 
 ### Step 2: Install Dependencies
 
-Install the required project dependencies:
+Install the project dependencies:
 
 ```bash
 npm install
 ```
 
-### Step 3: Configure Firebase
+### Step 3: Firebase Configuration
 
-The application requires a Firebase project configured with Authentication and Cloud Firestore.
+The application connects to an existing Firebase project configured for this prototype.
 
-1. Open the [Firebase Console](https://console.firebase.google.com/).
-2. Create or select a Firebase project.
-3. Enable **Authentication** and the **Email/Password** sign-in provider.
-4. Create a **Cloud Firestore** database.
-5. Configure the application using the Firebase project settings.
-6. Ensure the application's Firebase configuration file at `src/config/firebase.ts` contains the required configuration.
+Firebase Authentication and Cloud Firestore are already used to support authentication, user profiles, check-in records and reminder schedules.
 
-**Important:** Do not commit private credentials, service-account keys, test-user passwords or local environment files containing secrets to the repository. Apply appropriate Firestore security rules before using the database.
+The standard Firebase client configuration is maintained in:
+
+```text
+src/config/firebase.ts
+```
+
+**Evaluators do not need to create a separate Firebase project**, provided the existing configuration remains available and accessible.
+
+The Firebase project must have:
+
+- Email/password authentication enabled.
+- Cloud Firestore enabled.
+- Appropriate security rules configured.
+- Demonstration elderly and caregiver accounts.
+
+The Firebase configuration contains client-side project identifiers. It does not provide administrator access to Firebase.
+
+Firebase administrator credentials and service-account private keys are not included in the repository.
 
 ### Step 4: Start the Application
 
@@ -146,125 +184,234 @@ Start the Expo development server:
 npx expo start
 ```
 
-Expo will display development options and a QR code.
+The terminal will display a QR code and options for opening the application.
 
-To open the application:
+**On Android:** Open the project using Expo Go or the appropriate development build.
 
-- **iOS:** Scan the QR code using a compatible iPhone and open the project through Expo Go when supported.
-- **Android:** Open the project using Expo Go on a compatible Android device.
-- **Emulator/Simulator:** Select the relevant platform from the Expo development server, provided the required development tools are installed.
+**On iOS:** Scan the QR code using a compatible iPhone and open the application in Expo Go or an appropriate development build.
 
-Some notification functionality is not fully supported in Expo Go and requires a development build.
+**Using an emulator/simulator:** Select the relevant platform from Expo after the required development tools have been installed.
 
-## 7. Test Accounts and User Linking
+Ensure the mobile device and development computer can communicate over the required network.
 
-The application supports two account roles:
+If local network connectivity prevents the device from connecting, Expo can also be started using:
 
-| Role        | Description                                                     |
-| ----------- | --------------------------------------------------------------- |
-| `elderly`   | Can complete wellbeing check-ins and review reminders/history   |
-| `caregiver` | Can monitor a linked elderly user and manage reminder schedules |
-
-Each account must have a corresponding profile document in the Firestore `users` collection.
-
-A caregiver account must contain an `elderlyUserId` referencing the Firebase Authentication UID of the linked elderly account.
-
-### Example Elderly Profile
-
-```json
-{
-  "name": "Example Elderly User",
-  "email": "elderly@example.com",
-  "role": "elderly"
-}
+```bash
+npx expo start --tunnel
 ```
 
-### Example Caregiver Profile
+## 7. Demonstration Accounts
 
-```json
-{
-  "name": "Example Caregiver",
-  "email": "caregiver@example.com",
-  "role": "caregiver",
-  "elderlyUserId": "ELDERLY_USER_UID"
-}
-```
+The prototype uses Firebase Authentication to manage elderly and caregiver accounts.
 
-The Firestore document ID for each profile should match the corresponding authenticated user's UID.
+Demonstration accounts have been created for evaluating the application and are linked through Cloud Firestore.
 
-These examples describe the linking mechanism and are not actual login credentials. Test accounts must be created separately using Firebase Authentication.
+| Account                         | Role        | Purpose                            |
+| ------------------------------- | ----------- | ---------------------------------- |
+| Elderly demonstration account   | `elderly`   | Wellbeing reminders and check-ins  |
+| Caregiver demonstration account | `caregiver` | Monitoring and reminder management |
+
+**Demonstration login credentials will be provided separately through an approved course submission method.**
+
+No passwords or private authentication credentials are stored in this repository.
+
+### Account Linking
+
+The application uses user profile documents in the Firestore `users` collection.
+
+Each profile document corresponds to an authenticated Firebase user.
+
+The caregiver profile includes a reference to the linked elderly user's UID through the `elderlyUserId` field.
+
+This allows the caregiver to access the appropriate wellbeing information and reminder schedule, subject to Firestore security rules.
+
+Account registration and automatic caregiver linking are not currently provided as public-facing application features.
 
 ## 8. Running Automated Tests
 
-The application uses Jest and React Native Testing Library to verify application logic, component behaviour and user interactions.
+Automated testing was implemented using Jest and React Native Testing Library.
 
-Run all tests:
+### Run All Tests
 
 ```bash
 npm test
 ```
 
-Run a specific test suite:
+### Run Individual Test Suites
+
+For example, to test the elderly dashboard:
 
 ```bash
 npm test -- ElderlyDashboard
 ```
 
+To test the caregiver reminder schedule:
+
 ```bash
 npm test -- CaregiverSchedule
 ```
 
-Check TypeScript compilation:
+### TypeScript Validation
+
+Run the TypeScript compiler without generating output files:
 
 ```bash
 npx tsc --noEmit -p tsconfig.app.json
 ```
 
-Automated tests cover functionality including:
+### Testing Coverage
 
-- Authentication and role-based login
+Automated tests have been developed for functionality including:
+
+- Login validation and authentication
+- Role-based navigation
 - Wellbeing check-in submission
-- Check-in status and history
+- Duplicate submission prevention
+- Elderly and caregiver dashboard behaviour
+- Check-in history
 - Reminder management and validation
+- Missed-check-in detection
+- Notification permission and scheduling behaviour
 - Firestore service operations
-- Real-time caregiver updates
-- Missed check-in processing
-- Notification scheduling
-- Navigation and logout
+- Real-time updates and notification handling
 
-## 9. Demonstrating the Prototype
+Tests use mocked dependencies where appropriate to verify application behaviour independently of live Firebase services.
 
-The following workflow can be used to demonstrate the application.
+Successful automated tests do not replace end-to-end testing on actual mobile devices.
 
-### Elderly Workflow
+## 9. Prototype Demonstration
 
-1. Sign in using an elderly account.
-2. View the current wellbeing status and next scheduled reminder.
-3. Select **I'M OK** to submit a wellbeing confirmation.
-4. Confirm that the dashboard updates to show a completed check-in.
-5. Open **History** to review previous records.
+The following workflows demonstrate the main functionality of the system.
 
-### Caregiver Workflow
+### 9.1 Authentication and Role-Based Navigation
 
-1. Sign in using a caregiver account linked to the elderly account.
-2. View the elderly user's profile and current wellbeing status.
-3. Open **View Check-in History** to review completed and missed records.
-4. Open **Manage Reminder Schedule**.
-5. Add or remove a reminder time.
+1. Launch the application.
+2. Enter the demonstration account credentials.
+3. Select **Log In**.
+4. The application authenticates the account through Firebase Authentication.
+5. The associated user profile is retrieved from Firestore.
+6. The application navigates to the elderly or caregiver dashboard based on the account's role.
+
+### 9.2 Elderly Wellbeing Check-in
+
+1. Sign in using the elderly demonstration account.
+2. View the current wellbeing status and next scheduled check-in.
+3. Select **I'M OK ✓** to confirm wellbeing.
+4. The application saves a completed check-in record to Firestore.
+5. The dashboard updates to show that a check-in has been completed today.
+6. Select **View Check-in History** to review stored records.
+
+### 9.3 Caregiver Monitoring
+
+1. Sign in using the caregiver demonstration account.
+2. View the linked elderly user's profile.
+3. Review the current wellbeing status.
+4. View the next scheduled reminder and latest check-in.
+5. Open **View Check-in History** to review completed and missed records.
+
+### 9.4 Reminder Management
+
+1. Sign in using the caregiver account.
+2. Select **Manage Reminder Schedule**.
+3. Enter a reminder time using the 24-hour `HH:mm` format.
+4. Select **Add**.
+5. Add or remove additional reminder times as required.
 6. Select **Save Schedule**.
-7. Confirm the updated reminder schedule is stored in Firestore.
+7. The updated schedule is stored in Firestore.
 
-### Synchronisation Demonstration
+When the elderly application loads and retrieves its reminder schedule, it requests notification permission and schedules local reminders where permission has been granted.
 
-1. Open the caregiver application and allow its check-in subscription to initialise.
-2. Sign in to the linked elderly account on another device.
+### 9.5 Synchronisation Between Users
+
+To demonstrate Firestore synchronisation, use two devices or application sessions authenticated with the linked accounts.
+
+1. Open the caregiver dashboard and allow the initial data to load.
+2. Open the elderly dashboard using the linked elderly account.
 3. Complete a wellbeing check-in.
-4. Confirm that the caregiver dashboard reflects the new check-in.
-5. Inspect Firestore to verify that the record was stored.
+4. Return to the caregiver dashboard.
+5. Verify that the updated check-in information is displayed.
+6. Open the caregiver history to review the completed record.
 
-### Notification Demonstration
+This demonstrates the communication of wellbeing information between the two roles using Firestore.
 
-1. Configure a reminder for a short time in the future.
-2. Open the elderly dashboard to load and schedule the notifications.
-3. Verify that the device has granted notification permission.
-4. Confirm that the reminder notification appears at the configured time.
+### 9.6 Missed Check-ins and Notifications
+
+The prototype detects overdue scheduled check-ins using the `MissedCheckInManager`.
+
+The manager compares configured reminder times against completed check-in records and applies a 30-minute grace period before recording a missed check-in.
+
+Missed records are stored in Firestore and can be displayed in check-in history.
+
+The caregiver dashboard subscribes to check-in changes and can trigger a local notification when it detects a newly added missed-check-in record after the initial snapshot.
+
+**Important limitation:** This is not a guaranteed remote push notification service. Missed-check-in detection and caregiver notifications depend on relevant application processing. Notifications may not be delivered when the caregiver application is closed or inactive.
+
+## 10. Firestore Data Storage
+
+Cloud Firestore stores the information needed to support wellbeing reminders, user profiles and check-in history.
+
+The main collections are:
+
+| Collection  | Purpose                                                                 |
+| ----------- | ----------------------------------------------------------------------- |
+| `users`     | Stores user profiles, roles and caregiver–elderly account relationships |
+| `reminders` | Stores scheduled wellbeing reminder times                               |
+| `checkIns`  | Stores completed and missed wellbeing check-in records                  |
+
+Completed check-ins contain information such as the elderly user's identifier, completion status and timestamp.
+
+Missed check-in records also support identifying the scheduled date and time associated with the missed reminder.
+
+Firestore security rules should ensure that users can only access records for which they are authorised.
+
+## 11. Known Limitations
+
+The Elderly Wellbeing Check-in System is a functional academic prototype with the following limitations:
+
+- A caregiver is currently limited to one linked elderly account.
+- Account creation and caregiver linking require setup outside the normal application interface.
+- The application requires network connectivity for Firebase authentication and cloud synchronisation.
+- Reminders use local device notifications rather than a comprehensive cloud notification system.
+- Missed-check-in processing is dependent on application execution and is not guaranteed to occur when all devices are inactive.
+- Caregiver notifications are not guaranteed when the caregiver application is closed.
+- Some notification functionality requires a suitable Expo development build.
+- The system does not integrate with emergency services, medical providers or wearable devices.
+- The application has not been validated for use as a medical or emergency response system.
+
+The prototype is designed to demonstrate the feasibility of a simple, privacy-conscious wellbeing check-in workflow.
+
+## 12. Future Improvements
+
+Further development could include:
+
+- In-app account registration and caregiver linking.
+- Server-side missed-check-in detection using Firebase Cloud Functions or a scheduled backend process.
+- Firebase Cloud Messaging for more reliable remote caregiver notifications.
+- Improved offline operation and synchronisation recovery.
+- Additional accessibility options and personalisation.
+- Formal usability testing with representative older adults.
+- Support for caregivers managing multiple elderly accounts.
+- Continuous integration and automated deployment workflows.
+
+These improvements would increase the system's reliability and suitability for use beyond an academic prototype.
+
+## 13. Development and Version Control
+
+Git and GitHub were used to manage the implementation and development artefacts.
+
+Development followed a hybrid Scrum and Kanban approach, with functionality implemented incrementally, tested and refined.
+
+The repository contains application source code, configuration files and automated tests.
+
+The submitted `main` branch represents the final prototype developed for Milestone 2.
+
+## 14. Academic Context
+
+This project was developed for **COMP826 Mobile Systems Development** at Auckland University of Technology.
+
+The project investigates whether a simple cross-platform application can support scheduled wellbeing confirmations and caregiver awareness without relying on continuous surveillance, wearable hardware or detailed medical data.
+
+The implementation, evaluation and reflections are documented in the accompanying Milestone 2 report.
+
+**Developer:** Laina Hende  
+**Project:** Elderly Wellbeing Check-in System
