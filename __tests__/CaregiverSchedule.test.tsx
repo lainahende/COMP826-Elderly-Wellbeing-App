@@ -1,9 +1,9 @@
 import {
-    act,
-    fireEvent,
-    render,
-    screen,
-    waitFor,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
 } from "@testing-library/react-native";
 
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
@@ -17,6 +17,8 @@ import { Alert } from "react-native";
 const mockGetLinkedElderlyUserId = jest.fn();
 const mockGetReminderSchedule = jest.fn();
 const mockSaveReminderSchedule = jest.fn();
+
+const mockBack = jest.fn();
 
 /* --------------------------------------------------
    Mock Firebase
@@ -33,15 +35,23 @@ jest.mock("../src/config/firebase", () => ({
 }));
 
 /* --------------------------------------------------
+   Mock Expo Router
+-------------------------------------------------- */
+
+jest.mock("expo-router", () => ({
+  router: {
+    back: mockBack,
+  },
+}));
+
+/* --------------------------------------------------
    Mock DatabaseService
 -------------------------------------------------- */
 
 jest.mock("../src/services/DatabaseService", () => ({
   DatabaseService: jest.fn().mockImplementation(() => ({
     getLinkedElderlyUserId: mockGetLinkedElderlyUserId,
-
     getReminderSchedule: mockGetReminderSchedule,
-
     saveReminderSchedule: mockSaveReminderSchedule,
   })),
 }));
@@ -69,6 +79,30 @@ describe("CaregiverSchedule", () => {
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
+  test("renders reminder schedule screen", async () => {
+    await render(<CaregiverSchedule />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Reminder Schedule")).toBeTruthy();
+    });
+
+    expect(screen.getByText("Add a reminder")).toBeTruthy();
+
+    expect(screen.getByText("Reminder Times")).toBeTruthy();
+  });
+
+  test("back button returns to caregiver dashboard", async () => {
+    await render(<CaregiverSchedule />);
+
+    await waitFor(() => {
+      expect(screen.getByText("‹ Back")).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByText("‹ Back"));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
   test("loads existing reminder schedule", async () => {
     mockGetReminderSchedule.mockResolvedValue([
       {
@@ -88,6 +122,12 @@ describe("CaregiverSchedule", () => {
 
     expect(screen.getByText("18:00")).toBeTruthy();
 
+    expect(screen.getByText("8:00 AM")).toBeTruthy();
+
+    expect(screen.getByText("12:00 PM")).toBeTruthy();
+
+    expect(screen.getByText("6:00 PM")).toBeTruthy();
+
     expect(mockGetLinkedElderlyUserId).toHaveBeenCalledWith("caregiver123");
 
     expect(mockGetReminderSchedule).toHaveBeenCalledWith("elderly123");
@@ -99,15 +139,21 @@ describe("CaregiverSchedule", () => {
     await render(<CaregiverSchedule />);
 
     await waitFor(() => {
-      expect(screen.getByText("No reminders configured.")).toBeTruthy();
+      expect(screen.getByText("No reminders configured")).toBeTruthy();
     });
+
+    expect(
+      screen.getByText(
+        "Add a reminder time above to create the wellbeing schedule.",
+      ),
+    ).toBeTruthy();
   });
 
   test("adds a valid reminder", async () => {
     await render(<CaregiverSchedule />);
 
     await waitFor(() => {
-      expect(screen.getByText("No reminders configured.")).toBeTruthy();
+      expect(screen.getByText("No reminders configured")).toBeTruthy();
     });
 
     await fireEvent.changeText(screen.getByLabelText("Reminder time"), "09:30");
@@ -117,13 +163,15 @@ describe("CaregiverSchedule", () => {
     await waitFor(() => {
       expect(screen.getByText("09:30")).toBeTruthy();
     });
+
+    expect(screen.getByText("9:30 AM")).toBeTruthy();
   });
 
   test("rejects invalid reminder time", async () => {
     await render(<CaregiverSchedule />);
 
     await waitFor(() => {
-      expect(screen.getByText("No reminders configured.")).toBeTruthy();
+      expect(screen.getByText("No reminders configured")).toBeTruthy();
     });
 
     await fireEvent.changeText(screen.getByLabelText("Reminder time"), "25:99");
@@ -178,13 +226,17 @@ describe("CaregiverSchedule", () => {
       expect(screen.getByText("08:00")).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByLabelText("Delete reminder 08:00"));
+    await fireEvent.press(screen.getByLabelText("Delete reminder 8:00 AM"));
 
     await waitFor(() => {
       expect(screen.queryByText("08:00")).toBeNull();
     });
 
+    expect(screen.queryByText("8:00 AM")).toBeNull();
+
     expect(screen.getByText("18:00")).toBeTruthy();
+
+    expect(screen.getByText("6:00 PM")).toBeTruthy();
   });
 
   test("saves reminder schedule to Firestore", async () => {
@@ -226,6 +278,22 @@ describe("CaregiverSchedule", () => {
     );
   });
 
+  test("saves an empty reminder schedule", async () => {
+    mockGetReminderSchedule.mockResolvedValue([]);
+
+    await render(<CaregiverSchedule />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Save Schedule")).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByText("Save Schedule"));
+
+    await waitFor(() => {
+      expect(mockSaveReminderSchedule).toHaveBeenCalledWith("elderly123", []);
+    });
+  });
+
   test("shows no linked user message when caregiver has no elderly account", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
 
@@ -239,7 +307,23 @@ describe("CaregiverSchedule", () => {
       ).toBeTruthy();
     });
 
+    expect(screen.getByText("No Linked User")).toBeTruthy();
+
     expect(mockGetReminderSchedule).not.toHaveBeenCalled();
+  });
+
+  test("back button works when no elderly user is linked", async () => {
+    mockGetLinkedElderlyUserId.mockResolvedValue(null);
+
+    await render(<CaregiverSchedule />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No Linked User")).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByText("‹ Back"));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
   test("shows saving state while schedule is being saved", async () => {
@@ -257,8 +341,15 @@ describe("CaregiverSchedule", () => {
       expect(screen.getByText("Save Schedule")).toBeTruthy();
     });
 
-    // Do NOT await this press because handleSave
-    // is deliberately waiting on pendingSave.
+    /*
+     * Important:
+     * Do NOT await this press.
+     *
+     * handleSave is deliberately waiting on
+     * pendingSave, so awaiting the press would
+     * prevent us from checking the intermediate
+     * "Saving..." state.
+     */
     fireEvent.press(screen.getByText("Save Schedule"));
 
     await waitFor(() => {
@@ -269,6 +360,8 @@ describe("CaregiverSchedule", () => {
 
     await act(async () => {
       resolveSave("reminder1");
+
+      await pendingSave;
     });
 
     await waitFor(() => {

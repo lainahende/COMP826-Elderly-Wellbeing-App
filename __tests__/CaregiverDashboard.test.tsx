@@ -18,13 +18,9 @@ const mockPush = jest.fn();
 const mockReplace = jest.fn();
 
 const mockGetLinkedElderlyUserId = jest.fn();
-
 const mockGetUserProfile = jest.fn();
-
 const mockGetReminderSchedule = jest.fn();
-
 const mockGetCheckIns = jest.fn();
-
 const mockSubscribeToCheckIns = jest.fn();
 
 const mockGetNextReminder = jest.fn();
@@ -32,7 +28,6 @@ const mockGetNextReminder = jest.fn();
 const mockProcessMissedReminders = jest.fn();
 
 const mockRequestPermissions = jest.fn();
-
 const mockSendMissedCheckInNotification = jest.fn();
 
 /* --------------------------------------------------
@@ -83,13 +78,9 @@ jest.mock("../src/presenters/AuthPresenter", () => ({
 jest.mock("../src/services/DatabaseService", () => ({
   DatabaseService: jest.fn().mockImplementation(() => ({
     getLinkedElderlyUserId: mockGetLinkedElderlyUserId,
-
     getUserProfile: mockGetUserProfile,
-
     getReminderSchedule: mockGetReminderSchedule,
-
     getCheckIns: mockGetCheckIns,
-
     subscribeToCheckIns: mockSubscribeToCheckIns,
   })),
 }));
@@ -133,6 +124,16 @@ jest.mock("../src/services/NotificationService", () => ({
 const CaregiverDashboard = require("../src/app/caregiver/dashboard").default;
 
 /* --------------------------------------------------
+   Helper
+-------------------------------------------------- */
+
+const sendCheckInSnapshot = async (records: any[]) => {
+  await act(async () => {
+    await checkInCallback?.(records);
+  });
+};
+
+/* --------------------------------------------------
    Tests
 -------------------------------------------------- */
 
@@ -157,10 +158,13 @@ describe("CaregiverDashboard", () => {
 
     mockGetNextReminder.mockReturnValue(null);
 
+    /*
+     * Store the real-time callback without triggering it
+     * during render. Individual tests trigger snapshots
+     * inside act() when required.
+     */
     mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
       checkInCallback = callback;
-
-      callback([]);
 
       return jest.fn();
     });
@@ -175,8 +179,8 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       Dashboard loading
-    ================================================== */
+     Dashboard loading
+  ================================================== */
 
   test("loads linked elderly user using caregiver ID", async () => {
     render(<CaregiverDashboard />);
@@ -188,6 +192,14 @@ describe("CaregiverDashboard", () => {
     expect(mockGetUserProfile).toHaveBeenCalledWith("elderly123");
   });
 
+  test("displays caregiver dashboard title", async () => {
+    render(<CaregiverDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Caregiver Dashboard")).toBeTruthy();
+    });
+  });
+
   test("displays linked elderly profile", async () => {
     render(<CaregiverDashboard />);
 
@@ -196,11 +208,13 @@ describe("CaregiverDashboard", () => {
     });
 
     expect(screen.getByText("mary@example.com")).toBeTruthy();
+
+    expect(screen.getByText("Elderly Profile")).toBeTruthy();
   });
 
   /* ==================================================
-       Real-time check-in status
-    ================================================== */
+     Real-time check-in status
+  ================================================== */
 
   test("subscribes to linked elderly user's check-ins", async () => {
     render(<CaregiverDashboard />);
@@ -217,8 +231,12 @@ describe("CaregiverDashboard", () => {
     render(<CaregiverDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText("No check-in today")).toBeTruthy();
+      expect(checkInCallback).toBeDefined();
     });
+
+    await sendCheckInSnapshot([]);
+
+    expect(screen.getByText("No check-in today")).toBeTruthy();
 
     expect(screen.getByText("No previous check-ins")).toBeTruthy();
   });
@@ -232,21 +250,17 @@ describe("CaregiverDashboard", () => {
       expect(checkInCallback).toBeDefined();
     });
 
-    await act(async () => {
-      await checkInCallback?.([
-        {
-          id: "checkin1",
+    await sendCheckInSnapshot([
+      {
+        id: "checkin1",
+        elderlyUserId: "elderly123",
+        status: "completed",
 
-          elderlyUserId: "elderly123",
-
-          status: "completed",
-
-          timestamp: {
-            toDate: () => today,
-          },
+        timestamp: {
+          toDate: () => today,
         },
-      ]);
-    });
+      },
+    ]);
 
     await waitFor(() => {
       expect(screen.getByText("✓ Checked in today")).toBeTruthy();
@@ -255,7 +269,7 @@ describe("CaregiverDashboard", () => {
     expect(screen.getByText(/Today at/)).toBeTruthy();
   });
 
-  test("shows no check-in today when latest check-in is missed", async () => {
+  test("shows no check-in today when only a missed record exists", async () => {
     const today = new Date();
 
     render(<CaregiverDashboard />);
@@ -264,30 +278,72 @@ describe("CaregiverDashboard", () => {
       expect(checkInCallback).toBeDefined();
     });
 
-    await act(async () => {
-      await checkInCallback?.([
-        {
-          id: "missed1",
+    await sendCheckInSnapshot([
+      {
+        id: "missed1",
+        elderlyUserId: "elderly123",
+        status: "missed",
 
-          elderlyUserId: "elderly123",
-
-          status: "missed",
-
-          timestamp: {
-            toDate: () => today,
-          },
+        timestamp: {
+          toDate: () => today,
         },
-      ]);
-    });
+      },
+    ]);
 
     await waitFor(() => {
       expect(screen.getByText("No check-in today")).toBeTruthy();
     });
+
+    expect(screen.getByText("No previous check-ins")).toBeTruthy();
+  });
+
+  test("uses latest completed record as the last check-in", async () => {
+    const olderCompleted = new Date();
+
+    olderCompleted.setHours(olderCompleted.getHours() - 2);
+
+    const newerMissed = new Date();
+
+    newerMissed.setHours(newerMissed.getHours() - 1);
+
+    render(<CaregiverDashboard />);
+
+    await waitFor(() => {
+      expect(checkInCallback).toBeDefined();
+    });
+
+    await sendCheckInSnapshot([
+      {
+        id: "completed1",
+        elderlyUserId: "elderly123",
+        status: "completed",
+
+        timestamp: {
+          toDate: () => olderCompleted,
+        },
+      },
+
+      {
+        id: "missed1",
+        elderlyUserId: "elderly123",
+        status: "missed",
+
+        timestamp: {
+          toDate: () => newerMissed,
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText("✓ Checked in today")).toBeTruthy();
+    });
+
+    expect(screen.getByText(/Today at/)).toBeTruthy();
   });
 
   /* ==================================================
-       Reminder display
-    ================================================== */
+     Reminder display
+  ================================================== */
 
   test("displays next scheduled reminder", async () => {
     mockGetReminderSchedule.mockResolvedValue([
@@ -326,8 +382,8 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       Missed reminder processing
-    ================================================== */
+     Missed reminder processing
+  ================================================== */
 
   test("processes missed reminders for linked elderly user", async () => {
     const completedDate = new Date();
@@ -420,37 +476,31 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       Missed check-in notifications
-    ================================================== */
+     Missed check-in notifications
+  ================================================== */
 
   test("does not notify for missed records already present on first snapshot", async () => {
     const today = new Date();
 
-    mockSubscribeToCheckIns.mockImplementation((_elderlyUserId, callback) => {
-      checkInCallback = callback;
-
-      callback([
-        {
-          id: "oldMissed1",
-
-          elderlyUserId: "elderly123",
-
-          status: "missed",
-
-          timestamp: {
-            toDate: () => today,
-          },
-        },
-      ]);
-
-      return jest.fn();
-    });
-
     render(<CaregiverDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText("Mary Smith")).toBeTruthy();
+      expect(checkInCallback).toBeDefined();
     });
+
+    await sendCheckInSnapshot([
+      {
+        id: "oldMissed1",
+
+        elderlyUserId: "elderly123",
+
+        status: "missed",
+
+        timestamp: {
+          toDate: () => today,
+        },
+      },
+    ]);
 
     expect(mockRequestPermissions).not.toHaveBeenCalled();
 
@@ -466,21 +516,29 @@ describe("CaregiverDashboard", () => {
       expect(checkInCallback).toBeDefined();
     });
 
-    await act(async () => {
-      await checkInCallback?.([
-        {
-          id: "newMissed1",
+    /*
+     * First snapshot represents records already
+     * present when the caregiver dashboard loads.
+     */
+    await sendCheckInSnapshot([]);
 
-          elderlyUserId: "elderly123",
+    /*
+     * Second snapshot contains a newly-created
+     * missed check-in.
+     */
+    await sendCheckInSnapshot([
+      {
+        id: "newMissed1",
 
-          status: "missed",
+        elderlyUserId: "elderly123",
 
-          timestamp: {
-            toDate: () => today,
-          },
+        status: "missed",
+
+        timestamp: {
+          toDate: () => today,
         },
-      ]);
-    });
+      },
+    ]);
 
     await waitFor(() => {
       expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
@@ -510,13 +568,11 @@ describe("CaregiverDashboard", () => {
       expect(checkInCallback).toBeDefined();
     });
 
-    await act(async () => {
-      await checkInCallback?.([missedRecord]);
-    });
+    await sendCheckInSnapshot([]);
 
-    await act(async () => {
-      await checkInCallback?.([missedRecord]);
-    });
+    await sendCheckInSnapshot([missedRecord]);
+
+    await sendCheckInSnapshot([missedRecord]);
 
     await waitFor(() => {
       expect(mockSendMissedCheckInNotification).toHaveBeenCalledTimes(1);
@@ -534,21 +590,21 @@ describe("CaregiverDashboard", () => {
       expect(checkInCallback).toBeDefined();
     });
 
-    await act(async () => {
-      await checkInCallback?.([
-        {
-          id: "newMissed1",
+    await sendCheckInSnapshot([]);
 
-          elderlyUserId: "elderly123",
+    await sendCheckInSnapshot([
+      {
+        id: "newMissed1",
 
-          status: "missed",
+        elderlyUserId: "elderly123",
 
-          timestamp: {
-            toDate: () => today,
-          },
+        status: "missed",
+
+        timestamp: {
+          toDate: () => today,
         },
-      ]);
-    });
+      },
+    ]);
 
     await waitFor(() => {
       expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
@@ -558,8 +614,8 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       No linked elderly account
-    ================================================== */
+     No linked elderly account
+  ================================================== */
 
   test("shows message when caregiver has no linked elderly user", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
@@ -580,8 +636,8 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       Navigation
-    ================================================== */
+     Navigation
+  ================================================== */
 
   test("history button navigates to caregiver history", async () => {
     render(<CaregiverDashboard />);
@@ -608,8 +664,8 @@ describe("CaregiverDashboard", () => {
   });
 
   /* ==================================================
-       Logout
-    ================================================== */
+     Logout
+  ================================================== */
 
   test("logout signs caregiver out and returns to login", async () => {
     render(<CaregiverDashboard />);

@@ -1,17 +1,28 @@
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
 import LargeButton from "../../components/LargeButton";
 import { auth } from "../../config/firebase";
 import { DatabaseService } from "../../services/DatabaseService";
+
+const formatReminderTime = (time: string) => {
+  const [hourText, minute] = time.split(":");
+  const hour = Number(hourText);
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${minute} ${suffix}`;
+};
 
 export default function CaregiverSchedule() {
   const databaseService = new DatabaseService();
@@ -158,82 +169,172 @@ export default function CaregiverSchedule() {
   };
 
   /* --------------------------------------------------
-     Render
+     Loading
   -------------------------------------------------- */
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.message}>Loading reminder schedule...</Text>
+      <View
+        style={styles.centerContainer}
+        accessible
+        accessibilityLabel="Loading reminder schedule"
+      >
+        <Text style={styles.loadingText}>Loading reminder schedule...</Text>
       </View>
     );
   }
+
+  /* --------------------------------------------------
+     No linked elderly user
+  -------------------------------------------------- */
 
   if (!elderlyUserId) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.title}>Reminder Schedule</Text>
+      <View style={styles.noLinkContainer}>
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.backButtonText}>‹ Back</Text>
+          </Pressable>
 
-        <Text style={styles.message}>
-          No elderly user is linked to this caregiver account.
-        </Text>
+          <Text style={styles.title} accessibilityRole="header">
+            Reminder Schedule
+          </Text>
+        </View>
+
+        <View style={styles.noLinkCard}>
+          <Text style={styles.noLinkTitle}>No Linked User</Text>
+
+          <Text style={styles.message}>
+            No elderly user is linked to this caregiver account.
+          </Text>
+        </View>
       </View>
     );
   }
 
+  /* --------------------------------------------------
+     Main screen
+  -------------------------------------------------- */
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Reminder Schedule</Text>
-
-      <Text style={styles.instructions}>
-        Add wellbeing reminder times using 24-hour format.
-      </Text>
-
-      <View style={styles.inputRow}>
-        <TextInput
-          value={newTime}
-          onChangeText={setNewTime}
-          placeholder="08:30"
-          keyboardType="numbers-and-punctuation"
-          style={styles.input}
-          accessibilityLabel="Reminder time"
-        />
-
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddReminder}
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.topBar}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Add reminder"
+          accessibilityLabel="Go back to caregiver dashboard"
         >
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
+          <Text style={styles.backButtonText}>‹ Back</Text>
+        </Pressable>
+
+        <Text style={styles.title} accessibilityRole="header">
+          Reminder Schedule
+        </Text>
       </View>
 
-      <View style={styles.listContainer}>
-        {reminderTimes.length === 0 ? (
-          <Text style={styles.message}>No reminders configured.</Text>
-        ) : (
-          reminderTimes.map((time) => (
-            <View key={time} style={styles.reminderRow}>
-              <Text style={styles.reminderTime}>{time}</Text>
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>Add a reminder</Text>
 
-              <TouchableOpacity
-                onPress={() => handleDeleteReminder(time)}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete reminder ${time}`}
+        <Text style={styles.instructions}>
+          Enter a time using 24-hour format, for example 08:30 or 18:00.
+        </Text>
+
+        <View style={styles.inputRow}>
+          <TextInput
+            value={newTime}
+            onChangeText={setNewTime}
+            placeholder="08:30"
+            placeholderTextColor="#777777"
+            keyboardType="numbers-and-punctuation"
+            style={styles.input}
+            maxLength={5}
+            accessibilityLabel="Reminder time"
+            accessibilityHint="Enter a time using 24-hour format"
+          />
+
+          <Pressable
+            style={styles.addButton}
+            onPress={handleAddReminder}
+            accessibilityRole="button"
+            accessibilityLabel="Add reminder"
+          >
+            <Text style={styles.addButtonText}>Add</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.scheduleSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            Reminder Times
+          </Text>
+
+          <Text style={styles.reminderCount}>{reminderTimes.length}</Text>
+        </View>
+
+        {reminderTimes.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No reminders configured</Text>
+
+            <Text style={styles.emptyText}>
+              Add a reminder time above to create the wellbeing schedule.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.listContainer}>
+            {reminderTimes.map((time) => (
+              <View
+                key={time}
+                style={styles.reminderRow}
+                accessible
+                accessibilityLabel={`Reminder at ${formatReminderTime(time)}`}
               >
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          ))
+                <View style={styles.timeContainer}>
+                  <Text style={styles.reminderTime}>
+                    {formatReminderTime(time)}
+                  </Text>
+
+                  <Text style={styles.reminderTime24}>{time}</Text>
+                </View>
+
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteReminder(time)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete reminder ${formatReminderTime(
+                    time,
+                  )}`}
+                >
+                  <Text style={styles.deleteText}>Delete</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
-      <LargeButton
-        title={saving ? "Saving..." : "Save Schedule"}
-        onPress={handleSave}
-        disabled={saving}
-      />
+      <View style={styles.saveSection}>
+        <LargeButton
+          title={saving ? "Saving..." : "Save Schedule"}
+          onPress={handleSave}
+          disabled={saving}
+        />
+
+        <Text style={styles.saveHint}>
+          Changes are not applied until you save the schedule.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -241,83 +342,262 @@ export default function CaregiverSchedule() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 28,
-    gap: 24,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 28,
+    gap: 16,
+    backgroundColor: "#F8F8F4",
   },
 
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 28,
+    padding: 24,
+    backgroundColor: "#F8F8F4",
+  },
+
+  loadingText: {
+    fontSize: 18,
+    color: "#333333",
+    textAlign: "center",
+  },
+
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  backButton: {
+    minWidth: 76,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: "#BDBDBD",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+  },
+
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#222222",
   },
 
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    textAlign: "center",
+    flex: 1,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "700",
+    color: "#111111",
+  },
+
+  infoCard: {
+    padding: 16,
+    borderWidth: 2,
+    borderColor: "#D1D1D1",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+  },
+
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111111",
   },
 
   instructions: {
-    fontSize: 18,
-    textAlign: "center",
+    marginTop: 6,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#555555",
   },
 
   inputRow: {
     flexDirection: "row",
-    gap: 12,
     alignItems: "center",
+    gap: 10,
+    marginTop: 16,
   },
 
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#AAA",
+    minHeight: 52,
+    borderWidth: 2,
+    borderColor: "#BDBDBD",
     borderRadius: 10,
-    padding: 14,
+    paddingHorizontal: 14,
     fontSize: 20,
+    color: "#111111",
+    backgroundColor: "#FFFFFF",
   },
 
   addButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    minWidth: 72,
+    minHeight: 52,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#333",
+    backgroundColor: "#4E9F3D",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
 
   addButtonText: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 
-  listContainer: {
+  scheduleSection: {
     gap: 12,
   },
 
-  reminderRow: {
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#CCC",
-    borderRadius: 10,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111111",
+  },
+
+  reminderCount: {
+    minWidth: 34,
+    minHeight: 34,
+    borderRadius: 17,
+    backgroundColor: "#E7F4E4",
+    color: "#286C1D",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    textAlignVertical: "center",
+    paddingTop: 6,
+  },
+
+  listContainer: {
+    gap: 10,
+  },
+
+  reminderRow: {
+    minHeight: 76,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 2,
+    borderColor: "#D1D1D1",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+  },
+
+  timeContainer: {
+    flex: 1,
   },
 
   reminderTime: {
     fontSize: 22,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#111111",
+  },
+
+  reminderTime24: {
+    marginTop: 2,
+    fontSize: 14,
+    color: "#666666",
+  },
+
+  deleteButton: {
+    minWidth: 76,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderColor: "#C94A4A",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
   },
 
   deleteText: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#9D2929",
+  },
+
+  emptyCard: {
+    padding: 22,
+    borderWidth: 2,
+    borderColor: "#D1D1D1",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+
+  emptyTitle: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#111111",
+    textAlign: "center",
+  },
+
+  emptyText: {
+    marginTop: 7,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#555555",
+    textAlign: "center",
+  },
+
+  saveSection: {
+    marginTop: 4,
+    gap: 8,
+  },
+
+  saveHint: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#666666",
+    textAlign: "center",
+  },
+
+  noLinkContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 28,
+    gap: 24,
+    backgroundColor: "#F8F8F4",
+  },
+
+  noLinkCard: {
+    marginTop: 20,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: "#D1D1D1",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+
+  noLinkTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111111",
+    textAlign: "center",
   },
 
   message: {
-    fontSize: 18,
+    marginTop: 10,
+    fontSize: 17,
+    lineHeight: 24,
+    color: "#555555",
     textAlign: "center",
   },
 });

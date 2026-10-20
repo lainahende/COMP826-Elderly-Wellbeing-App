@@ -117,51 +117,70 @@ describe("ElderlyDashboard", () => {
     jest.clearAllMocks();
 
     mockGetReminderSchedule.mockResolvedValue([]);
+
     mockGetNextReminder.mockReturnValue(null);
 
     mockGetCheckIns.mockResolvedValue([]);
 
     mockRequestPermissions.mockResolvedValue(true);
+
     mockCancelAllReminders.mockResolvedValue(undefined);
+
     mockScheduleReminderTimes.mockResolvedValue([]);
+
+    mockLogout.mockResolvedValue(undefined);
+
+    mockCompleteCheckIn.mockResolvedValue("checkin123");
   });
 
   /* ==================================================
-     Basic dashboard tests
-  ================================================== */
+       Basic dashboard tests
+    ================================================== */
 
   test("renders elderly dashboard content", async () => {
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
-    expect(screen.getByText("Good Morning")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText("Wellbeing Check-in")).toBeTruthy();
+    });
 
     expect(screen.getByText("Current Status")).toBeTruthy();
 
     expect(screen.getByText("Next Check-in")).toBeTruthy();
 
-    expect(screen.getByText("How are you?")).toBeTruthy();
+    expect(screen.getByText("How are you feeling today?")).toBeTruthy();
+
+    expect(
+      screen.getByText("Tap the button when you are ready to check in."),
+    ).toBeTruthy();
 
     expect(screen.getByText("I'M OK ✓")).toBeTruthy();
 
-    expect(screen.getByText("View Check-in History")).toBeTruthy();
+    expect(screen.getByText("History")).toBeTruthy();
 
     expect(screen.getByText("Log Out")).toBeTruthy();
   });
 
   test("history button navigates to elderly history", async () => {
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
-    await fireEvent.press(screen.getByText("View Check-in History"));
+    await waitFor(() => {
+      expect(screen.getByText("History")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("History"));
 
     expect(mockPush).toHaveBeenCalledWith("/elderly/history");
   });
 
   test("logout signs user out and returns to login", async () => {
-    mockLogout.mockResolvedValue(undefined);
+    render(<ElderlyDashboard />);
 
-    await render(<ElderlyDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Log Out")).toBeTruthy();
+    });
 
-    await fireEvent.press(screen.getByText("Log Out"));
+    fireEvent.press(screen.getByText("Log Out"));
 
     await waitFor(() => {
       expect(mockLogout).toHaveBeenCalledTimes(1);
@@ -171,13 +190,13 @@ describe("ElderlyDashboard", () => {
   });
 
   /* ==================================================
-     Check-in status tests
-  ================================================== */
+       Check-in status tests
+    ================================================== */
 
   test("shows no check-in today when no check-ins exist", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No check-in today")).toBeTruthy();
@@ -186,7 +205,7 @@ describe("ElderlyDashboard", () => {
     expect(screen.getByText("No previous check-ins")).toBeTruthy();
   });
 
-  test("shows checked in today when a check-in exists today", async () => {
+  test("shows checked in today when a completed check-in exists today", async () => {
     const today = new Date();
 
     mockGetCheckIns.mockResolvedValue([
@@ -200,16 +219,16 @@ describe("ElderlyDashboard", () => {
       },
     ]);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText("✓ Checked in today")).toBeTruthy();
+      expect(screen.getByText("Checked in today")).toBeTruthy();
     });
 
     expect(screen.getByText(/Last check-in: Today at/)).toBeTruthy();
   });
 
-  test("shows previous check-in when latest check-in was not today", async () => {
+  test("shows previous check-in when latest completed check-in was not today", async () => {
     const previousDate = new Date("2026-10-12T08:00:00");
 
     mockGetCheckIns.mockResolvedValue([
@@ -223,7 +242,7 @@ describe("ElderlyDashboard", () => {
       },
     ]);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No check-in today")).toBeTruthy();
@@ -232,13 +251,15 @@ describe("ElderlyDashboard", () => {
     expect(screen.getByText(/Last check-in:/)).toBeTruthy();
   });
 
-  test("uses the newest check-in as the last check-in", async () => {
+  test("uses the newest completed check-in as the last check-in", async () => {
     const today = new Date();
 
     const olderCheckIn = new Date(today);
+
     olderCheckIn.setHours(today.getHours() - 2);
 
     const newerCheckIn = new Date(today);
+
     newerCheckIn.setHours(today.getHours() - 1);
 
     mockGetCheckIns.mockResolvedValue([
@@ -267,16 +288,41 @@ describe("ElderlyDashboard", () => {
     });
   });
 
+  test("does not treat a missed record as a completed check-in", async () => {
+    const today = new Date();
+
+    mockGetCheckIns.mockResolvedValue([
+      {
+        id: "missed1",
+        elderlyUserId: "elderly123",
+        status: "missed",
+        timestamp: {
+          toDate: () => today,
+        },
+      },
+    ]);
+
+    render(<ElderlyDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No check-in today")).toBeTruthy();
+    });
+
+    expect(screen.getByText("No previous check-ins")).toBeTruthy();
+  });
+
   /* ==================================================
-     Check-in action tests
-  ================================================== */
+       Check-in action tests
+    ================================================== */
 
   test("pressing I'M OK creates a check-in for the logged-in elderly user", async () => {
-    mockCompleteCheckIn.mockResolvedValue("checkin123");
+    render(<ElderlyDashboard />);
 
-    await render(<ElderlyDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
 
-    await fireEvent.press(screen.getByText("I'M OK ✓"));
+    fireEvent.press(screen.getByText("I'M OK ✓"));
 
     await waitFor(() => {
       expect(mockCompleteCheckIn).toHaveBeenCalledTimes(1);
@@ -288,18 +334,16 @@ describe("ElderlyDashboard", () => {
   test("updates current status after successful check-in", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    mockCompleteCheckIn.mockResolvedValue("checkin123");
-
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No check-in today")).toBeTruthy();
     });
 
-    await fireEvent.press(screen.getByText("I'M OK ✓"));
+    fireEvent.press(screen.getByText("I'M OK ✓"));
 
     await waitFor(() => {
-      expect(screen.getByText("✓ Checked in today")).toBeTruthy();
+      expect(screen.getByText("Checked in today")).toBeTruthy();
     });
 
     expect(screen.getByText(/Last check-in: Today at/)).toBeTruthy();
@@ -314,7 +358,11 @@ describe("ElderlyDashboard", () => {
 
     mockCompleteCheckIn.mockReturnValue(pendingCheckIn);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
 
     fireEvent.press(screen.getByText("I'M OK ✓"));
 
@@ -330,6 +378,7 @@ describe("ElderlyDashboard", () => {
 
     await act(async () => {
       resolveCheckIn("checkin123");
+
       await pendingCheckIn;
     });
 
@@ -347,7 +396,11 @@ describe("ElderlyDashboard", () => {
 
     mockCompleteCheckIn.mockReturnValue(pendingCheckIn);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
 
     fireEvent.press(screen.getByText("I'M OK ✓"));
 
@@ -357,6 +410,7 @@ describe("ElderlyDashboard", () => {
 
     await act(async () => {
       resolveCheckIn("checkin123");
+
       await pendingCheckIn;
     });
 
@@ -366,11 +420,13 @@ describe("ElderlyDashboard", () => {
   });
 
   test("returns check-in button to normal after successful submission", async () => {
-    mockCompleteCheckIn.mockResolvedValue("checkin123");
+    render(<ElderlyDashboard />);
 
-    await render(<ElderlyDashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("I'M OK ✓")).toBeTruthy();
+    });
 
-    await fireEvent.press(screen.getByText("I'M OK ✓"));
+    fireEvent.press(screen.getByText("I'M OK ✓"));
 
     await waitFor(() => {
       expect(screen.getByText("I'M OK ✓")).toBeTruthy();
@@ -378,8 +434,8 @@ describe("ElderlyDashboard", () => {
   });
 
   /* ==================================================
-     Reminder display tests
-  ================================================== */
+       Reminder display tests
+    ================================================== */
 
   test("displays the next reminder time from reminder schedule", async () => {
     mockGetReminderSchedule.mockResolvedValue([
@@ -392,7 +448,7 @@ describe("ElderlyDashboard", () => {
 
     mockGetNextReminder.mockReturnValue("10:00");
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("10:00 AM")).toBeTruthy();
@@ -412,7 +468,7 @@ describe("ElderlyDashboard", () => {
 
     mockGetNextReminder.mockReturnValue(null);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No reminder set")).toBeTruthy();
@@ -422,8 +478,8 @@ describe("ElderlyDashboard", () => {
   });
 
   /* ==================================================
-     Notification tests
-  ================================================== */
+       Notification tests
+    ================================================== */
 
   test("requests notification permission when reminders are configured", async () => {
     mockGetReminderSchedule.mockResolvedValue([
@@ -436,7 +492,7 @@ describe("ElderlyDashboard", () => {
 
     mockGetNextReminder.mockReturnValue("18:00");
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
@@ -456,7 +512,7 @@ describe("ElderlyDashboard", () => {
 
     mockRequestPermissions.mockResolvedValue(true);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(mockScheduleReminderTimes).toHaveBeenCalledWith([
@@ -480,7 +536,7 @@ describe("ElderlyDashboard", () => {
 
     mockRequestPermissions.mockResolvedValue(true);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(mockCancelAllReminders).toHaveBeenCalledTimes(1);
@@ -511,7 +567,7 @@ describe("ElderlyDashboard", () => {
 
     mockRequestPermissions.mockResolvedValue(false);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
@@ -525,7 +581,7 @@ describe("ElderlyDashboard", () => {
   test("does not request notification permission when no reminders exist", async () => {
     mockGetReminderSchedule.mockResolvedValue([]);
 
-    await render(<ElderlyDashboard />);
+    render(<ElderlyDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No reminder set")).toBeTruthy();

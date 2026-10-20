@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { Stack, router, useSegments } from "expo-router";
 
@@ -28,11 +28,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
+
       setFirebaseUser(user);
 
       if (!user) {
         setRole(null);
         setLoading(false);
+
         return;
       }
 
@@ -69,7 +72,9 @@ export default function RootLayout() {
 
     const currentSection = segments[0];
 
-    // User is not logged in
+    /*
+     * User is not logged in.
+     */
     if (!firebaseUser) {
       if (currentSection !== undefined) {
         router.replace("/");
@@ -78,7 +83,9 @@ export default function RootLayout() {
       return;
     }
 
-    // Elderly user
+    /*
+     * Elderly user.
+     */
     if (role === "elderly") {
       if (currentSection !== "elderly") {
         router.replace("/elderly/dashboard");
@@ -87,7 +94,9 @@ export default function RootLayout() {
       return;
     }
 
-    // Caregiver user
+    /*
+     * Caregiver user.
+     */
     if (role === "caregiver") {
       if (currentSection !== "caregiver") {
         router.replace("/caregiver/dashboard");
@@ -121,8 +130,18 @@ export default function RootLayout() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityLabel="Loading Elderly Wellbeing"
+      >
+        <View style={styles.logoCircle}>
+          <Text style={styles.logoText}>✓</Text>
+        </View>
+
         <ActivityIndicator size="large" />
+
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -132,48 +151,33 @@ export default function RootLayout() {
   -------------------------------------------------- */
 
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+
+        contentStyle: {
+          backgroundColor: "#F8F8F4",
+        },
+
+        animation: "slide_from_right",
+      }}
+    >
       <Stack.Screen
         name="index"
         options={{
-          title: "Login",
+          animation: "fade",
         }}
       />
 
-      <Stack.Screen
-        name="elderly/dashboard"
-        options={{
-          title: "Elderly Dashboard",
-        }}
-      />
+      <Stack.Screen name="elderly/dashboard" />
 
-      <Stack.Screen
-        name="elderly/history"
-        options={{
-          title: "Check-in History",
-        }}
-      />
+      <Stack.Screen name="elderly/history" />
 
-      <Stack.Screen
-        name="caregiver/dashboard"
-        options={{
-          title: "Caregiver Dashboard",
-        }}
-      />
+      <Stack.Screen name="caregiver/dashboard" />
 
-      <Stack.Screen
-        name="caregiver/history"
-        options={{
-          title: "Check-in History",
-        }}
-      />
+      <Stack.Screen name="caregiver/history" />
 
-      <Stack.Screen
-        name="caregiver/schedule"
-        options={{
-          title: "Reminder Schedule",
-        }}
-      />
+      <Stack.Screen name="caregiver/schedule" />
     </Stack>
   );
 }
@@ -183,5 +187,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
+    backgroundColor: "#F8F8F4",
+  },
+
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    backgroundColor: "#E7F4E4",
+    borderWidth: 2,
+    borderColor: "#4E9F3D",
+  },
+
+  logoText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#286C1D",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 17,
+    color: "#555555",
   },
 });
