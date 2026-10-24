@@ -21,7 +21,7 @@ const mockBack = jest.fn();
    Real-time callback
 -------------------------------------------------- */
 
-let checkInCallback: ((checkIns: any[]) => void) | undefined;
+let checkInCallback: ((checkIns: any[]) => void | Promise<void>) | undefined;
 
 /* --------------------------------------------------
    Mock Firebase
@@ -71,7 +71,7 @@ const CaregiverHistoryScreen = require("../src/app/caregiver/history").default;
 
 const sendCheckInSnapshot = async (records: any[]) => {
   await act(async () => {
-    checkInCallback?.(records);
+    await checkInCallback?.(records);
   });
 };
 
@@ -103,7 +103,7 @@ describe("CaregiverHistoryScreen", () => {
   ================================================== */
 
   test("subscribes to check-ins for linked elderly user", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(mockGetLinkedElderlyUserId).toHaveBeenCalledWith("caregiver123");
@@ -116,7 +116,7 @@ describe("CaregiverHistoryScreen", () => {
   });
 
   test("renders history screen title", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -128,7 +128,7 @@ describe("CaregiverHistoryScreen", () => {
   });
 
   test("back button returns to caregiver dashboard", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -136,7 +136,7 @@ describe("CaregiverHistoryScreen", () => {
 
     await sendCheckInSnapshot([]);
 
-    fireEvent.press(screen.getByText("‹ Back"));
+    await fireEvent.press(screen.getByText("‹ Back"));
 
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
@@ -146,7 +146,7 @@ describe("CaregiverHistoryScreen", () => {
   ================================================== */
 
   test("shows empty state when no check-ins exist", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -168,7 +168,7 @@ describe("CaregiverHistoryScreen", () => {
   test("displays completed check-in from today", async () => {
     const today = new Date();
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -196,7 +196,7 @@ describe("CaregiverHistoryScreen", () => {
 
     yesterday.setDate(yesterday.getDate() - 1);
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -222,7 +222,7 @@ describe("CaregiverHistoryScreen", () => {
   test("displays older completed check-in date", async () => {
     const olderDate = new Date("2026-10-01T10:00:00");
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -252,7 +252,7 @@ describe("CaregiverHistoryScreen", () => {
   test("displays missed status", async () => {
     const today = new Date();
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -280,7 +280,7 @@ describe("CaregiverHistoryScreen", () => {
   });
 
   test("uses scheduled date and time for missed check-in when available", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -318,7 +318,7 @@ describe("CaregiverHistoryScreen", () => {
 
     const newer = new Date("2026-10-02T10:00:00");
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -358,7 +358,7 @@ describe("CaregiverHistoryScreen", () => {
   ================================================== */
 
   test("updates history when a new check-in arrives", async () => {
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -398,7 +398,7 @@ describe("CaregiverHistoryScreen", () => {
   test("shows message when caregiver has no linked elderly user", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(
@@ -416,13 +416,13 @@ describe("CaregiverHistoryScreen", () => {
   test("back button works when caregiver has no linked elderly user", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
 
-    render(<CaregiverHistoryScreen />);
+    await render(<CaregiverHistoryScreen />);
 
     await waitFor(() => {
       expect(screen.getByText("No Linked User")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("‹ Back"));
+    await fireEvent.press(screen.getByText("‹ Back"));
 
     expect(mockBack).toHaveBeenCalledTimes(1);
   });

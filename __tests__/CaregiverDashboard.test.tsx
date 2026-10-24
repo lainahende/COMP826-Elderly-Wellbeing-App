@@ -183,7 +183,7 @@ describe("CaregiverDashboard", () => {
   ================================================== */
 
   test("loads linked elderly user using caregiver ID", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(mockGetLinkedElderlyUserId).toHaveBeenCalledWith("caregiver123");
@@ -193,7 +193,7 @@ describe("CaregiverDashboard", () => {
   });
 
   test("displays caregiver dashboard title", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("Caregiver Dashboard")).toBeTruthy();
@@ -201,7 +201,7 @@ describe("CaregiverDashboard", () => {
   });
 
   test("displays linked elderly profile", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("Mary Smith")).toBeTruthy();
@@ -217,7 +217,7 @@ describe("CaregiverDashboard", () => {
   ================================================== */
 
   test("subscribes to linked elderly user's check-ins", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(mockSubscribeToCheckIns).toHaveBeenCalledWith(
@@ -228,7 +228,7 @@ describe("CaregiverDashboard", () => {
   });
 
   test("shows no check-in today when no check-ins exist", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -244,7 +244,7 @@ describe("CaregiverDashboard", () => {
   test("shows checked in today when completed check-in exists", async () => {
     const today = new Date();
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -272,7 +272,7 @@ describe("CaregiverDashboard", () => {
   test("shows no check-in today when only a missed record exists", async () => {
     const today = new Date();
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -306,7 +306,7 @@ describe("CaregiverDashboard", () => {
 
     newerMissed.setHours(newerMissed.getHours() - 1);
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -358,7 +358,7 @@ describe("CaregiverDashboard", () => {
 
     mockGetNextReminder.mockReturnValue("14:30");
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("2:30 PM")).toBeTruthy();
@@ -374,7 +374,7 @@ describe("CaregiverDashboard", () => {
   });
 
   test("shows no reminder set when elderly user has no reminders", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("No reminder set")).toBeTruthy();
@@ -412,7 +412,7 @@ describe("CaregiverDashboard", () => {
       },
     ]);
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(mockProcessMissedReminders).toHaveBeenCalledWith(
@@ -464,7 +464,7 @@ describe("CaregiverDashboard", () => {
       },
     ]);
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(mockProcessMissedReminders).toHaveBeenCalledWith(
@@ -482,7 +482,7 @@ describe("CaregiverDashboard", () => {
   test("does not notify for missed records already present on first snapshot", async () => {
     const today = new Date();
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -510,7 +510,7 @@ describe("CaregiverDashboard", () => {
   test("notifies when a new missed check-in arrives", async () => {
     const today = new Date();
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -562,7 +562,7 @@ describe("CaregiverDashboard", () => {
       },
     };
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -584,7 +584,7 @@ describe("CaregiverDashboard", () => {
 
     mockRequestPermissions.mockResolvedValue(false);
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(checkInCallback).toBeDefined();
@@ -620,7 +620,7 @@ describe("CaregiverDashboard", () => {
   test("shows message when caregiver has no linked elderly user", async () => {
     mockGetLinkedElderlyUserId.mockResolvedValue(null);
 
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(
@@ -640,25 +640,25 @@ describe("CaregiverDashboard", () => {
   ================================================== */
 
   test("history button navigates to caregiver history", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("View Check-in History")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("View Check-in History"));
+    await fireEvent.press(screen.getByText("View Check-in History"));
 
     expect(mockPush).toHaveBeenCalledWith("/caregiver/history");
   });
 
   test("schedule button navigates to reminder settings", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("Manage Reminder Schedule")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("Manage Reminder Schedule"));
+    await fireEvent.press(screen.getByText("Manage Reminder Schedule"));
 
     expect(mockPush).toHaveBeenCalledWith("/caregiver/schedule");
   });
@@ -668,13 +668,13 @@ describe("CaregiverDashboard", () => {
   ================================================== */
 
   test("logout signs caregiver out and returns to login", async () => {
-    render(<CaregiverDashboard />);
+    await render(<CaregiverDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText("Log Out")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("Log Out"));
+    await fireEvent.press(screen.getByText("Log Out"));
 
     await waitFor(() => {
       expect(mockLogout).toHaveBeenCalledTimes(1);

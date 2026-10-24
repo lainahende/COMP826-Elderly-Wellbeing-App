@@ -40,7 +40,7 @@ describe("ElderlyHistory", () => {
   test("renders the check-in history title", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("Check-in History")).toBeTruthy();
@@ -50,7 +50,7 @@ describe("ElderlyHistory", () => {
   test("loads check-ins for the logged-in elderly user", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(mockGetCheckIns).toHaveBeenCalledWith("elderly123");
@@ -60,13 +60,13 @@ describe("ElderlyHistory", () => {
   test("back button returns to previous screen", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("‹ Back")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("‹ Back"));
+    await fireEvent.press(screen.getByText("‹ Back"));
 
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
@@ -83,7 +83,7 @@ describe("ElderlyHistory", () => {
       },
     ]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("✓ Checked in")).toBeTruthy();
@@ -106,7 +106,7 @@ describe("ElderlyHistory", () => {
       },
     ]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("Missed")).toBeTruthy();
@@ -137,7 +137,7 @@ describe("ElderlyHistory", () => {
       },
     ]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("30 September 2026")).toBeTruthy();
@@ -156,6 +156,7 @@ describe("ElderlyHistory", () => {
           toDate: () => new Date("2026-09-30T08:00:00"),
         },
       },
+
       {
         id: "newer",
         elderlyUserId: "elderly123",
@@ -166,7 +167,7 @@ describe("ElderlyHistory", () => {
       },
     ]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getAllByText("✓ Checked in")).toHaveLength(2);
@@ -182,7 +183,7 @@ describe("ElderlyHistory", () => {
   test("shows an empty message when no check-ins exist", async () => {
     mockGetCheckIns.mockResolvedValue([]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("No check-ins yet")).toBeTruthy();
@@ -207,7 +208,7 @@ describe("ElderlyHistory", () => {
       },
     ]);
 
-    render(<ElderlyHistory />);
+    await render(<ElderlyHistory />);
 
     await waitFor(() => {
       expect(screen.getByText("Today")).toBeTruthy();
