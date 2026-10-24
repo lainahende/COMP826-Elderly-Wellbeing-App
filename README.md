@@ -140,7 +140,7 @@ git clone https://github.com/lainahende/COMP826-Elderly-Wellbeing-App.git
 Navigate into the project:
 
 ```bash
-cd elderly-wellbeing-app
+cd COMP826-Elderly-Wellbeing-App
 ```
 
 ### Step 2: Install Dependencies
