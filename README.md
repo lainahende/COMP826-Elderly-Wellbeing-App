@@ -24,6 +24,8 @@ The prototype uses React Native and Expo for cross-platform development, with Fi
 
 The system is intended as an academic prototype and is not a replacement for medical monitoring or emergency services.
 
+---
+
 ## 2. Key Features
 
 ### Elderly Dashboard
@@ -53,20 +55,24 @@ The system is intended as an academic prototype and is not a replacement for med
 - Cloud storage of profiles, reminders and check-in records.
 - Synchronisation of wellbeing information between users.
 
+---
+
 ## 3. Technology Stack
 
-| Technology                   | Purpose                                             |
-| ---------------------------- | --------------------------------------------------- |
-| React Native                 | Cross-platform mobile application development       |
-| Expo                         | Mobile development and testing environment          |
-| TypeScript                   | Type-safe application implementation                |
-| Expo Router                  | File-based navigation                               |
-| Firebase Authentication      | Email and password authentication                   |
-| Cloud Firestore              | Database storage and synchronisation                |
-| Expo Notifications           | Local device notifications                          |
-| Jest                         | Automated testing                                   |
-| React Native Testing Library | UI component and interaction testing                |
-| Git and GitHub               | Version control and development artefact management |
+| Technology | Purpose |
+| --- | --- |
+| React Native | Cross-platform mobile application development |
+| Expo SDK 58 | Mobile development and testing environment |
+| TypeScript | Type-safe application implementation |
+| Expo Router | File-based navigation |
+| Firebase Authentication | Email and password authentication |
+| Cloud Firestore | Database storage and synchronisation |
+| Expo Notifications | Local device notifications |
+| Jest | Automated testing |
+| React Native Testing Library | UI component and interaction testing |
+| Git and GitHub | Version control and development artefact management |
+
+---
 
 ## 4. Project Structure
 
@@ -112,6 +118,8 @@ elderly-wellbeing-app/
 
 The implementation is inspired by MVP rather than a strict implementation of the pattern, as some application logic and state management remain within React components.
 
+---
+
 ## 5. Prerequisites
 
 Before installing the project, ensure the following are available:
@@ -119,13 +127,21 @@ Before installing the project, ensure the following are available:
 - Node.js and npm
 - Git
 - A code editor, such as Visual Studio Code
-- A compatible Android or iOS device
-- Expo Go or an appropriate Expo development build
 - An internet connection
 
-An Android emulator or iOS simulator may also be used if the required development tools are installed.
+The application can be evaluated using one of the following environments:
 
-**Note:** Some notification functionality may require an Expo development build and a physical device. Notification behaviour should be tested on the intended platform.
+- **Physical Android or iOS device using Expo Go** — recommended.
+- **Android Emulator** using Android Studio — suitable if a physical device is unavailable.
+- **iOS Simulator** using Xcode — available on macOS only.
+
+The project uses **Expo SDK 58**.
+
+> **Important:** The web platform is not supported by this prototype. Evaluation should be performed using a physical mobile device or mobile emulator/simulator.
+
+A physical device is recommended where possible because notification behaviour is most representative on real mobile hardware.
+
+---
 
 ## 6. Installation and Execution
 
@@ -151,19 +167,27 @@ Install the project dependencies:
 npm install
 ```
 
+The project dependencies are defined in `package.json` and configured for Expo SDK 58.
+
+An optional compatibility check can be performed using:
+
+```bash
+npx expo-doctor@latest
+```
+
 ### Step 3: Firebase Configuration
 
 The application connects to an existing Firebase project configured for this prototype.
 
-Firebase Authentication and Cloud Firestore are already used to support authentication, user profiles, check-in records and reminder schedules.
+Firebase Authentication and Cloud Firestore are used to support authentication, user profiles, check-in records and reminder schedules.
 
-The standard Firebase client configuration is maintained in:
+The Firebase client configuration is stored in:
 
 ```text
 src/config/firebase.ts
 ```
 
-**Evaluators do not need to create a separate Firebase project**, provided the existing configuration remains available and accessible.
+Evaluators do not need to create a separate Firebase project, provided the existing configuration remains available and accessible.
 
 The Firebase project must have:
 
@@ -176,7 +200,27 @@ The Firebase configuration contains client-side project identifiers. It does not
 
 Firebase administrator credentials and service-account private keys are not included in the repository.
 
-### Step 4: Start the Application
+### Step 4: Start the Expo Development Server
+
+Start the application with:
+
+```bash
+npx expo start
+```
+
+The terminal will display a QR code and commands for opening the application.
+
+If cache-related issues occur, restart Expo using:
+
+```bash
+npx expo start -c
+```
+
+---
+
+### Option A: Physical Mobile Device — Recommended
+
+Install **Expo Go** on the Android or iOS device.
 
 Start the Expo development server:
 
@@ -184,21 +228,134 @@ Start the Expo development server:
 npx expo start
 ```
 
-The terminal will display a QR code and options for opening the application.
+#### Android
 
-**On Android:** Open the project using Expo Go or the appropriate development build.
+1. Open Expo Go.
+2. Select the option to scan a QR code.
+3. Scan the QR code displayed in the terminal.
+4. The application should open in Expo Go.
 
-**On iOS:** Scan the QR code using a compatible iPhone and open the application in Expo Go or an appropriate development build.
+#### iOS
 
-**Using an emulator/simulator:** Select the relevant platform from Expo after the required development tools have been installed.
+When using Expo Go on a physical iOS device, the Expo CLI and Expo Go application may need to be signed into the same Expo account.
 
-Ensure the mobile device and development computer can communicate over the required network.
+Check the Expo account currently being used by the CLI:
 
-If local network connectivity prevents the device from connecting, Expo can also be started using:
+```bash
+npx expo whoami
+```
+
+If no account is logged in, run:
+
+```bash
+npx expo login
+```
+
+Complete the browser-based login when prompted.
+
+The same Expo account should also be signed into Expo Go on the iOS device.
+
+If browser-based login does not open correctly on Windows, the alternative device login flow can be used:
+
+```bash
+npx eas-cli@latest login --device
+```
+
+After logging in, confirm the CLI account:
+
+```bash
+npx expo whoami
+```
+
+Then restart Expo if required:
+
+```bash
+npx expo start -c
+```
+
+Scan the QR code using the iPhone camera or Expo Go and open the project.
+
+The mobile device and development computer should normally be connected to the same network.
+
+If local network connectivity prevents the device from reaching the development server, Expo can be started in tunnel mode:
 
 ```bash
 npx expo start --tunnel
 ```
+
+---
+
+### Option B: Android Emulator — No Physical Phone Required
+
+If a physical mobile device is unavailable, the application can be evaluated using an Android Emulator.
+
+Requirements:
+
+- Android Studio
+- Android SDK
+- A configured Android Virtual Device
+
+Steps:
+
+1. Open Android Studio.
+2. Start an Android Virtual Device.
+3. Open the project directory in a terminal.
+4. Start Expo:
+
+```bash
+npx expo start
+```
+
+5. When the Expo development server is running, press:
+
+```text
+a
+```
+
+Expo should attempt to open the project on the running Android Emulator.
+
+This is the recommended alternative when a physical mobile device is unavailable.
+
+Some notification behaviour may differ from testing on a physical device.
+
+---
+
+### Option C: iOS Simulator — macOS Only
+
+If evaluating the application on macOS, an iOS Simulator can be used if Xcode is installed.
+
+Start Expo:
+
+```bash
+npx expo start
+```
+
+When the development server is running, press:
+
+```text
+i
+```
+
+Expo should open the application in the available iOS Simulator.
+
+The iOS Simulator is not available on Windows.
+
+---
+
+### Supported Evaluation Platforms
+
+The prototype is intended for mobile evaluation only.
+
+Supported environments include:
+
+- Physical Android device
+- Physical iOS device
+- Android Emulator
+- iOS Simulator
+
+**Web browser execution is not supported.**
+
+---
 
 ## 7. Demonstration Accounts
 
@@ -206,9 +363,9 @@ The prototype uses Firebase Authentication to manage elderly and caregiver accou
 
 Demonstration accounts have been created for evaluating the application and are linked through Cloud Firestore.
 
-| Account                         | Role        | Purpose                            |
-| ------------------------------- | ----------- | ---------------------------------- |
-| Elderly demonstration account   | `elderly`   | Wellbeing reminders and check-ins  |
+| Account | Role | Purpose |
+| --- | --- | --- |
+| Elderly demonstration account | `elderly` | Wellbeing reminders and check-ins |
 | Caregiver demonstration account | `caregiver` | Monitoring and reminder management |
 
 **Demonstration login credentials will be provided separately through an approved course submission method.**
@@ -227,28 +384,45 @@ This allows the caregiver to access the appropriate wellbeing information and re
 
 Account registration and automatic caregiver linking are not currently provided as public-facing application features.
 
+---
+
 ## 8. Running Automated Tests
 
 Automated testing was implemented using Jest and React Native Testing Library.
 
 ### Run All Tests
 
+Run all automated tests using:
+
 ```bash
-npm test
+npm test -- --runInBand
 ```
+
+The final prototype contains:
+
+- **12 test suites**
+- **124 automated tests**
+
+At the time of final verification, all 124 tests passed successfully.
 
 ### Run Individual Test Suites
 
 For example, to test the elderly dashboard:
 
 ```bash
-npm test -- ElderlyDashboard
+npm test -- ElderlyDashboard --runInBand
 ```
 
 To test the caregiver reminder schedule:
 
 ```bash
-npm test -- CaregiverSchedule
+npm test -- CaregiverSchedule --runInBand
+```
+
+To test the caregiver history:
+
+```bash
+npm test -- CaregiverHistory --runInBand
 ```
 
 ### TypeScript Validation
@@ -257,6 +431,14 @@ Run the TypeScript compiler without generating output files:
 
 ```bash
 npx tsc --noEmit -p tsconfig.app.json
+```
+
+### Expo Compatibility Validation
+
+Expo dependency compatibility can be checked using:
+
+```bash
+npx expo-doctor@latest
 ```
 
 ### Testing Coverage
@@ -278,6 +460,8 @@ Automated tests have been developed for functionality including:
 Tests use mocked dependencies where appropriate to verify application behaviour independently of live Firebase services.
 
 Successful automated tests do not replace end-to-end testing on actual mobile devices.
+
+---
 
 ## 9. Prototype Demonstration
 
@@ -323,7 +507,16 @@ When the elderly application loads and retrieves its reminder schedule, it reque
 
 ### 9.5 Synchronisation Between Users
 
-To demonstrate Firestore synchronisation, use two devices or application sessions authenticated with the linked accounts.
+To demonstrate Firestore synchronisation, use two devices or application sessions authenticated using the linked demonstration accounts.
+
+This could include:
+
+- Two physical mobile devices
+- A physical device and Android Emulator
+- A physical device and iOS Simulator
+- Two separate supported application sessions
+
+To demonstrate synchronisation:
 
 1. Open the caregiver dashboard and allow the initial data to load.
 2. Open the elderly dashboard using the linked elderly account.
@@ -332,7 +525,7 @@ To demonstrate Firestore synchronisation, use two devices or application session
 5. Verify that the updated check-in information is displayed.
 6. Open the caregiver history to review the completed record.
 
-This demonstrates the communication of wellbeing information between the two roles using Firestore.
+This demonstrates communication of wellbeing information between the two roles using Firestore.
 
 ### 9.6 Missed Check-ins and Notifications
 
@@ -346,23 +539,27 @@ The caregiver dashboard subscribes to check-in changes and can trigger a local n
 
 **Important limitation:** This is not a guaranteed remote push notification service. Missed-check-in detection and caregiver notifications depend on relevant application processing. Notifications may not be delivered when the caregiver application is closed or inactive.
 
+---
+
 ## 10. Firestore Data Storage
 
 Cloud Firestore stores the information needed to support wellbeing reminders, user profiles and check-in history.
 
 The main collections are:
 
-| Collection  | Purpose                                                                 |
-| ----------- | ----------------------------------------------------------------------- |
-| `users`     | Stores user profiles, roles and caregiver–elderly account relationships |
-| `reminders` | Stores scheduled wellbeing reminder times                               |
-| `checkIns`  | Stores completed and missed wellbeing check-in records                  |
+| Collection | Purpose |
+| --- | --- |
+| `users` | Stores user profiles, roles and caregiver–elderly account relationships |
+| `reminders` | Stores scheduled wellbeing reminder times |
+| `checkIns` | Stores completed and missed wellbeing check-in records |
 
 Completed check-ins contain information such as the elderly user's identifier, completion status and timestamp.
 
 Missed check-in records also support identifying the scheduled date and time associated with the missed reminder.
 
 Firestore security rules should ensure that users can only access records for which they are authorised.
+
+---
 
 ## 11. Known Limitations
 
@@ -374,11 +571,14 @@ The Elderly Wellbeing Check-in System is a functional academic prototype with th
 - Reminders use local device notifications rather than a comprehensive cloud notification system.
 - Missed-check-in processing is dependent on application execution and is not guaranteed to occur when all devices are inactive.
 - Caregiver notifications are not guaranteed when the caregiver application is closed.
-- Some notification functionality requires a suitable Expo development build.
+- Notification behaviour may vary between physical devices and emulators/simulators.
+- The web platform is not supported.
 - The system does not integrate with emergency services, medical providers or wearable devices.
 - The application has not been validated for use as a medical or emergency response system.
 
 The prototype is designed to demonstrate the feasibility of a simple, privacy-conscious wellbeing check-in workflow.
+
+---
 
 ## 12. Future Improvements
 
@@ -392,8 +592,11 @@ Further development could include:
 - Formal usability testing with representative older adults.
 - Support for caregivers managing multiple elderly accounts.
 - Continuous integration and automated deployment workflows.
+- Expanded testing across a wider range of Android and iOS devices.
 
 These improvements would increase the system's reliability and suitability for use beyond an academic prototype.
+
+---
 
 ## 13. Development and Version Control
 
@@ -405,13 +608,6 @@ The repository contains application source code, configuration files and automat
 
 The submitted `main` branch represents the final prototype developed for Milestone 2.
 
-## 14. Academic Context
-
-This project was developed for **COMP826 Mobile Systems Development** at Auckland University of Technology.
-
-The project investigates whether a simple cross-platform application can support scheduled wellbeing confirmations and caregiver awareness without relying on continuous surveillance, wearable hardware or detailed medical data.
-
-The implementation, evaluation and reflections are documented in the accompanying Milestone 2 report.
 
 **Developer:** Laina Hende  
 **Project:** Elderly Wellbeing Check-in System
